@@ -1,0 +1,56 @@
+{
+  "name": "@vx.rs/pannonico",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Verified native and WASI launcher for Pannonico",
+  "keywords": [
+    "cli",
+    "static-site",
+    "static-site-generator"
+  ],
+  "homepage": "https://pannonico.vx.rs",
+  "bugs": {
+    "url": "https://github.com/vx-rs/pannonico-node/issues"
+  },
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Vladimir Jovanovic",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vx-rs/pannonico-node.git"
+  },
+  "bin": {
+    "pannonico": "./bin/pannonico.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "LICENSE",
+    "NOTICE",
+    "COMMERCIAL-LICENSE.md",
+    "README.md"
+  ],
+  "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint --deny-warnings .",
+    "lint:fix": "oxlint . --fix",
+    "test": "node --test test/*.test.ts",
+    "test:coverage": "node --test --experimental-test-coverage test/*.test.ts",
+    "pack:check": "npm pack --dry-run --json --ignore-scripts",
+    "package:local": "node scripts/package-local-release.ts",
+    "test:consumer": "node scripts/test-local-release.ts",
+    "prepare:release": "node scripts/prepare-release.ts"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.58.0",
+    "oxlint": "^1.73.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

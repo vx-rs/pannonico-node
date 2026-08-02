@@ -1,0 +1,22 @@
+name: Pannonico launcher CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.16.0
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts --loglevel error
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm test
+      - run: npm run test:coverage
+      - run: npm run pack:check
