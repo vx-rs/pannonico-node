@@ -86,6 +86,42 @@ test("does not replace existing output when binary validation fails", () => {
   }
 });
 
+test("rejects package output inside a protected repository or at a regular file", () => {
+  assert.throws(
+    () =>
+      packageLocalRelease({
+        binaries: join(REPOSITORY_ROOT, "fixtures", "binaries"),
+        output: join(REPOSITORY_ROOT, "npm"),
+        repository: REPOSITORY_ROOT,
+        version: "1.2.3",
+      }),
+    /replace protected repository/,
+  );
+  assert.throws(
+    () =>
+      packageLocalRelease({
+        binaries: join(REPOSITORY_ROOT, "fixtures", "binaries"),
+        output: join(REPOSITORY_ROOT, "..cache", "npm"),
+        repository: REPOSITORY_ROOT,
+        version: "1.2.3",
+      }),
+    /replace protected repository/,
+  );
+
+  const root = mkdtempSync(join(os.tmpdir(), "pannonico-local-package-file-"));
+  const output = join(root, "npm");
+  writeFileSync(output, "preserve me\n");
+  try {
+    assert.throws(
+      () => packageLocalRelease({ binaries: join(root, "binaries"), output, version: "1.2.3" }),
+      /output is not a real directory/,
+    );
+    assert.equal(readFileSync(output, "utf8"), "preserve me\n");
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
 test("stages and replaces one exact package set from a validated public manifest", () => {
   const root = mkdtempSync(join(os.tmpdir(), "pannonico-local-package-success-"));
   const binaries = join(root, "pannonico-binaries");

@@ -11,7 +11,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
@@ -181,15 +181,35 @@ const assertSafeOutput = (output, repository, binaries) => {
     throw new Error(`Refusing broad package output ${output}`);
   }
   for (const protectedRoot of [repository, binaries]) {
-    const fromOutput = relative(output, protectedRoot);
-    if (fromOutput === "" || (!fromOutput.startsWith("..") && !isAbsolute(fromOutput))) {
+    if (pathsOverlap(output, protectedRoot)) {
       throw new Error(`Package output would replace protected repository ${protectedRoot}`);
     }
   }
-  if (existsSync(output) && lstatSync(output).isSymbolicLink()) {
-    throw new Error(`Package output is a symlink: ${output}`);
+  const parent = dirname(output);
+  if (existsSync(parent)) {
+    const parentInformation = lstatSync(parent);
+    if (parentInformation.isSymbolicLink() || !parentInformation.isDirectory()) {
+      throw new Error(`Package output parent is not a real directory: ${parent}`);
+    }
+  }
+  if (existsSync(output)) {
+    const information = lstatSync(output);
+    if (information.isSymbolicLink() || !information.isDirectory()) {
+      throw new Error(`Package output is not a real directory: ${output}`);
+    }
   }
 };
+
+/** pathsOverlap reports whether either absolute path contains the other. */
+const pathsOverlap = (first, second) => {
+  const firstToSecond = relative(first, second);
+  const secondToFirst = relative(second, first);
+  return [firstToSecond, secondToFirst].some(isContainedPath);
+};
+
+/** isContainedPath distinguishes a parent segment from an authored name that starts with dots. */
+const isContainedPath = (value) =>
+  value === "" || (!isAbsolute(value) && value !== ".." && !value.startsWith(`..${sep}`));
 
 const installStaged = (staging, output) => {
   const backup = `${output}.previous`;
