@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
 import test from "node:test";
 
@@ -6,6 +7,17 @@ import { createDebugLogger } from "../lib/debug.js";
 import { main } from "../lib/launcher.js";
 import { PackageUnavailableError } from "../lib/package-verification.js";
 import { runNativeExecutable } from "../lib/run-native.js";
+
+test("importing the launcher does not initialize the experimental WASI host", () => {
+  const launcher = new URL("../lib/launcher.js", import.meta.url).href;
+  const result = spawnSync(
+    process.execPath,
+    ["--input-type=module", "--eval", `await import(${JSON.stringify(launcher)})`],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.doesNotMatch(result.stderr, /ExperimentalWarning: WASI/);
+});
 
 test("forwards native arguments, process boundary, and exact exit status", async () => {
   let invocation;

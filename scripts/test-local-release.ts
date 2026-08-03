@@ -106,6 +106,9 @@ const runConsumer = (mode, artifact, version, packages, workspace, runCommand = 
   if (!`${versionResult.stdout}${versionResult.stderr}`.includes(version)) {
     throw new Error(`${mode} consumer returned an unexpected version`);
   }
+  if (mode === "native" && versionResult.stderr.includes("ExperimentalWarning: WASI")) {
+    throw new Error("native consumer initialized the experimental WASI host");
+  }
   run(process.execPath, [wrapper, "--help"], consumer, environment, runCommand);
   run(process.execPath, [wrapper, "scaffold", "site"], consumer, environment, runCommand);
   run(process.execPath, [wrapper, "build", "site"], consumer, environment, runCommand);
