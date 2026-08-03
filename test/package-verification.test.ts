@@ -92,10 +92,23 @@ test("distinguishes unavailable packages from installed integrity failures", () 
     () =>
       verifyPackage(NATIVE_TARGETS[0], "1.2.3", {
         resolvePackage: () => {
-          throw new Error();
+          throw Object.assign(new Error("missing"), { code: "ERR_MODULE_NOT_FOUND" });
         },
       }),
     PackageUnavailableError,
+  );
+  assert.throws(
+    () =>
+      verifyPackage(NATIVE_TARGETS[0], "1.2.3", {
+        resolvePackage: () => {
+          throw Object.assign(new Error("invalid package metadata"), {
+            code: "ERR_INVALID_PACKAGE_CONFIG",
+          });
+        },
+      }),
+    (error) =>
+      !(error instanceof PackageUnavailableError) &&
+      /Could not resolve installed package/.test(error.message),
   );
   for (const [label, mutate, expected] of [
     [

@@ -25,6 +25,16 @@ test("scopes a build to one project and only SOURCE_DATE_EPOCH", async () => {
       "/project/report.json",
       "/project",
     ]);
+    const dotted = await prepareWasiInvocation(
+      ["build", "--report-json", join(project, "..cache", "report.json"), project],
+      { environment: {} },
+    );
+    assert.deepEqual(dotted.args, [
+      "build",
+      "--report-json",
+      "/project/..cache/report.json",
+      "/project",
+    ]);
   } finally {
     rmSync(root, { force: true, recursive: true });
   }
@@ -50,7 +60,11 @@ test("rejects broad preopens and project-external absolute paths", async () => {
     if (process.platform !== "win32") {
       const rootLink = join(root, "root-link");
       symlinkSync(resolve("/"), rootLink);
-      await assert.rejects(prepareWasiInvocation(["build", rootLink]), /filesystem root/);
+      await assert.rejects(prepareWasiInvocation(["build", rootLink]), /symlink/);
+
+      const siteLink = join(root, "site-link");
+      symlinkSync(join(root, "site"), siteLink);
+      await assert.rejects(prepareWasiInvocation(["build", siteLink]), /symlink/);
     }
   } finally {
     rmSync(root, { force: true, recursive: true });
