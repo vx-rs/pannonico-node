@@ -45,3 +45,20 @@ test("checks native, missing-native, and forced-WASI registry-backed wrapper con
     rmSync(root, { force: true, recursive: true });
   }
 });
+
+test("accepts one exact registry package as the wrapper input", () => {
+  const installs = [];
+  testRegistryConsumers("1.2.3", "@vx.rs/pannonico@1.2.3", (command, args) => {
+    if (command === "npm") installs.push(args);
+    return {
+      status: 0,
+      stdout: args.at(-1) === "--version" ? "pannonico 1.2.3\n" : "",
+      stderr: "",
+    };
+  });
+  assert.equal(installs.length, 3);
+  assert.equal(
+    installs.every((args) => args.at(-1) === "@vx.rs/pannonico@1.2.3"),
+    true,
+  );
+});
