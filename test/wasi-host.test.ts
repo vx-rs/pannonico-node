@@ -75,8 +75,23 @@ test("creates a scaffold root before preopening it", async () => {
   const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
   const project = join(root, "new-site");
   try {
-    const invocation = await prepareWasiInvocation(["scaffold", "--empty", project]);
-    assert.deepEqual(invocation.args, ["scaffold", "--empty", "/project"]);
+    const invocation = await prepareWasiInvocation(["scaffold", "--vite", project]);
+    assert.deepEqual(invocation.args, ["scaffold", "--vite", "/project"]);
+    assert.deepEqual(invocation.preopens, { "/project": project });
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
+test("forwards build feature flags to the selected edition", async () => {
+  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const project = join(root, "site");
+  mkdirSync(project);
+  try {
+    const invocation = await prepareWasiInvocation(["build", "--minify", project], {
+      environment: {},
+    });
+    assert.deepEqual(invocation.args, ["build", "--minify", "/project"]);
     assert.deepEqual(invocation.preopens, { "/project": project });
   } finally {
     rmSync(root, { force: true, recursive: true });
