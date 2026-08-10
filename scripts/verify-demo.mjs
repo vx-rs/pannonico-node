@@ -1,3 +1,6 @@
+// Imports
+// -----------------------------------------------------------------------------
+// Node.js
 import { spawn } from "node:child_process";
 import { readFile, readdir, realpath } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -88,6 +91,47 @@ const runCommand = (executable, args, options) =>
     });
   });
 
+/**
+ * runCommandOutput executes one prerequisite command and returns its UTF-8 standard output.
+ *
+ * Capability checks use captured streams because their content determines whether the selected
+ * artifact may build this Pro-only demo. A spawn error, signal, or non-zero status rejects before
+ * Vite or Pannonico can mutate generated directories.
+ */
+const runCommandOutput = (executable, args, options) =>
+  new Promise((resolve, reject) => {
+    const child = spawn(executable, args, {
+      cwd: options.cwd,
+      env: options.environment,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const stdout = [];
+    const stderr = [];
+    let finished = false;
+    child.stdout.on("data", (chunk) => stdout.push(chunk));
+    child.stderr.on("data", (chunk) => stderr.push(chunk));
+    child.once("error", (error) => {
+      if (finished) return;
+      finished = true;
+      reject(new Error(`${options.label} could not start`, { cause: error }));
+    });
+    child.once("exit", (status, signal) => {
+      if (finished) return;
+      finished = true;
+      if (signal) {
+        reject(new Error(`${options.label} stopped after ${signal}`));
+      } else if (status !== 0) {
+        reject(
+          new Error(
+            `${options.label} exited with status ${status}: ${Buffer.concat(stderr).toString("utf8").trim()}`,
+          ),
+        );
+      } else {
+        resolve(Buffer.concat(stdout).toString("utf8"));
+      }
+    });
+  });
+
 // Output inspection
 // -----------------------------------------------------------------------------
 
@@ -161,8 +205,8 @@ const verifyReadableHTML = (files) => {
     const hasDocumentNesting =
       lines[0] === "<!doctype html>" &&
       lines[1]?.startsWith('<html lang="en"') &&
-      lines.includes("  <head>") &&
-      lines.includes("  <body>") &&
+      lines.some((line) => line.startsWith("  <head")) &&
+      lines.some((line) => line.startsWith("  <body")) &&
       lines.some((line) => line.startsWith("    <main")) &&
       lines.at(-1) === "</html>";
     if (
@@ -179,8 +223,8 @@ const verifyReadableHTML = (files) => {
 /**
  * readViteEntry loads and validates the manifest record configured as Pannonico's app alias.
  *
- * It returns only a record with one JavaScript file and at least one CSS file. Missing, malformed,
- * or incompatible manifest data rejects before rendered-page assertions run.
+ * It returns only a record with one JavaScript file, at least one CSS file, and an asset list.
+ * Missing, malformed, or incompatible manifest data rejects before rendered-page assertions run.
  */
 const readViteEntry = async () => {
   const manifestPath = join(DEMO_ROOT, ".pannonico", "vite", ".vite", "manifest.json");
@@ -192,7 +236,9 @@ const readViteEntry = async () => {
     typeof entry.file !== "string" ||
     !Array.isArray(entry.css) ||
     entry.css.length === 0 ||
-    entry.css.some((file) => typeof file !== "string")
+    entry.css.some((file) => typeof file !== "string") ||
+    !Array.isArray(entry.assets) ||
+    entry.assets.some((file) => typeof file !== "string")
   ) {
     throw new Error("The Vite manifest does not contain the configured src/app.ts entry and CSS.");
   }
@@ -200,24 +246,35 @@ const readViteEntry = async () => {
 };
 
 /**
- * verifyPublishedAssets proves the manifest entry reached both templates and compiled bundles.
+ * verifyPublishedAssets proves Vite output was published while selected CSS moved into HTML.
  *
- * It reads only the already parity-checked native output map. Missing pages, absent public URLs,
- * unpublished assets, or missing TypeScript/SCSS markers reject with a focused integration error.
+ * It reads only the already parity-checked native output map. Missing files, retained selected
+ * links, absent inlined declarations or residual rules, wrong URL rebasing, and missing
+ * TypeScript/SCSS markers reject with a focused integration error.
  */
 const verifyPublishedAssets = (files, entry) => {
   const pages = ["index.html", "guide.html"];
-  const assets = [entry.file, ...entry.css];
+  const assets = [entry.file, ...entry.css, ...entry.assets];
   for (const asset of assets) {
     if (!files.has(asset)) throw new Error(`Manifest asset was not published: ${asset}`);
   }
   for (const page of pages) {
     const html = files.get(page)?.toString("utf8");
     if (!html) throw new Error(`Rendered demo page is missing: ${page}`);
-    for (const asset of assets) {
-      if (!html.includes(`/${asset}`)) {
-        throw new Error(`${page} does not reference the manifest asset /${asset}`);
+    if (!html.includes(`/${entry.file}`)) {
+      throw new Error(`${page} does not retain the Vite JavaScript entry`);
+    }
+    for (const stylesheet of entry.css) {
+      if (html.includes(`href="/${stylesheet}"`) || html.includes("data-pannonico-inline-css")) {
+        throw new Error(`${page} retains a selected production stylesheet link`);
       }
+    }
+    if (!html.includes("style=") || !html.includes("@media")) {
+      throw new Error(`${page} lacks inlined declarations or residual media CSS`);
+    }
+    const rebasedAsset = entry.assets.find((asset) => asset.includes("accent-grid"));
+    if (!rebasedAsset || !html.includes(`url(&quot;/${rebasedAsset}&quot;)`)) {
+      throw new Error(`${page} lacks the root-relative inlined Vite asset URL`);
     }
   }
   const script = files.get(entry.file).toString("utf8");
@@ -227,6 +284,35 @@ const verifyPublishedAssets = (files, entry) => {
   const compiledCSS = entry.css.map((file) => files.get(file).toString("utf8")).join("\n");
   if (!compiledCSS.includes("--pannonico-demo-accent")) {
     throw new Error("The published CSS does not contain the compiled SCSS demo marker.");
+  }
+  if (!/url\((?:["']?)\.\/[^)]*accent-grid/.test(compiledCSS)) {
+    throw new Error("The compiled Vite CSS does not contain the relative asset URL fixture.");
+  }
+};
+
+/**
+ * requireCSSInliningCapabilities checks both launcher selection paths before any demo build.
+ *
+ * A mixed or Free artifact pair receives one actionable copy instruction rather than failing
+ * indirectly during native or forced-WASI rendering.
+ */
+const requireCSSInliningCapabilities = async (launcherPath) => {
+  const nativeEnvironment = { ...process.env };
+  delete nativeEnvironment.PANNONICO_FORCE_WASI;
+  for (const selection of [
+    { label: "native", environment: nativeEnvironment },
+    { label: "forced-WASI", environment: { ...process.env, PANNONICO_FORCE_WASI: "1" } },
+  ]) {
+    const output = await runCommandOutput(process.execPath, [launcherPath, "capabilities"], {
+      cwd: ROOT,
+      environment: selection.environment,
+      label: `${selection.label} capability check`,
+    });
+    if (!output.split("\n").includes("  - css-inlining (v1)")) {
+      throw new Error(
+        `The ${selection.label} artifact lacks css-inlining. Copy a matched Pro native/WASI pair from pannonico-go.`,
+      );
+    }
   }
 };
 
@@ -247,6 +333,7 @@ const verifyDemo = async () => {
 
   resolveDemoDependency("vite");
   resolveDemoDependency("sass", "sass");
+  resolveDemoDependency("lightningcss", "lightningcss");
   const typescriptPackage = resolveDemoDependency("typescript");
 
   const artifactModuleURL = pathToFileURL(join(packageRoot, "lib", "artifacts.js"));
@@ -264,6 +351,8 @@ const verifyDemo = async () => {
       "A matched native/WASI pair is required. Copy both artifacts from one pannonico-go build into artifacts/.",
     );
   }
+
+  await requireCSSInliningCapabilities(launcherPath);
 
   const typescriptCLI = join(dirname(typescriptPackage), "bin", "tsc");
   await runCommand(

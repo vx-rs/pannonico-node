@@ -1,8 +1,9 @@
 # Internal Vite connector demo
 
 This private npm workspace is the smallest complete consumer example for the
-Pannonico Vite connector. It keeps Vite, Sass, and TypeScript outside the
-launcher package while using the launcher's ignored local artifacts.
+Pannonico Vite connector. It keeps Vite, Sass, Lightning CSS, and TypeScript
+outside the launcher package while using the launcher's ignored local
+artifacts.
 
 From the repository root, install the single workspace lockfile and run the
 artifact-independent frontend checks:
@@ -35,14 +36,31 @@ Markdown pages use stable two-space nesting after template/Vite integration and
 before validation. A Pro native artifact can coordinate Pannonico and Vite
 development with `npm run watch` here or `npm run demo:watch` at the root.
 
-`demo:verify` uses the same flag for native and forced-WASI builds, requires
-their complete output trees to be byte-identical, and checks readable nesting,
-LF line endings, and the no-final-newline contract on both pages.
+The project also enables the Pro-only `css.inline` setting. The shared partial
+marks only production CSS links with `data-pannonico-inline-css`; development
+links remain unmarked so Vite CSS HMR continues to work. Copy a matched Pro
+native/WASI pair. `demo:verify` checks `css-inlining` on both artifacts before
+starting either build.
 
-`src/app.ts` imports `src/app.scss`. Vite writes a hashed bundle, compiled CSS,
-and `.pannonico/vite/.vite/manifest.json`. Pannonico maps the manifest's
+The verifier uses `--beautify` for native and forced-WASI builds, requires their
+complete output trees to be byte-identical, and checks readable nesting, LF
+line endings, and the no-final-newline contract on both pages. It also requires
+generated element styles, residual media CSS, no production marker or selected
+CSS link, a rebased root-relative SVG URL, the retained module script, and the
+published CSS, JavaScript, and SVG files.
+
+`src/app.ts` imports `src/app.scss`. Sass compiles its readable nested source;
+Vite delegates the configured CSS transform and production minification to
+Lightning CSS. `base: "./"` and `assetsInlineLimit: 0` keep the referenced
+`accent-grid.svg` as a separate artifact and leave a relative URL in compiled
+CSS. Pannonico resolves that URL against the hashed stylesheet before moving
+matched declarations into HTML.
+
+Vite writes a hashed bundle, compiled CSS, SVG, and
+`.pannonico/vite/.vite/manifest.json`. Pannonico maps the manifest's
 `src/app.ts` entry to the `app` alias used by `partials/vite.html`, then renders
-the HTML and Markdown pages through `layouts/default.html`.
+the HTML and Markdown pages through `layouts/default.html`. The compiled CSS
+and SVG remain published even though the selected production link is consumed.
 
 Generated Vite state and `dist*` site output are ignored. Do not commit them or
 add a second lockfile under this workspace.

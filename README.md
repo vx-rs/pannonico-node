@@ -59,8 +59,8 @@ private Git snapshot testing.
 ## Internal Vite demo
 
 The private `demo` npm workspace is a complete local consumer that keeps its
-Vite, Sass, and TypeScript dependencies separate from the launcher package. One
-root install prepares both packages:
+Vite, Sass, Lightning CSS, and TypeScript dependencies separate from the
+launcher package. One root install prepares both packages:
 
 ```sh
 npm ci --ignore-scripts
@@ -78,12 +78,15 @@ npm run demo:verify
 ```
 
 `demo:build` uses `pannonico build --beautify` with the native launcher artifact
-and lets Pannonico run the configured Vite build. `demo:verify` type-checks the
-TypeScript source, performs one beautified native build, reuses that exact Vite
-manifest for a beautified forced-WASI build, and requires both complete output
-trees to be byte-identical. It also verifies readable two-space HTML nesting and
-that the shared template partial publishes the hashed JavaScript and compiled
-SCSS for both the HTML and Markdown pages.
+and lets Pannonico run the configured Vite build. `demo:verify` first confirms
+that both local artifacts advertise the Pro-only `css-inlining` capability. It
+type-checks the TypeScript source, performs one beautified native build, reuses
+that exact Vite manifest for a beautified forced-WASI build, and requires both
+complete output trees to be byte-identical. It also verifies readable two-space
+HTML nesting, generated style attributes, residual media CSS, removal of the
+marked production CSS link, root-relative rebasing of the SCSS asset URL, the
+retained JavaScript tag, and publication of the compiled CSS, JavaScript, and
+SVG assets.
 
 For a standalone fallback build, produce the manifest before forcing WASI;
 the confined WASI runtime does not start Vite or another host process:
@@ -101,9 +104,11 @@ npm run demo:watch
 
 The equivalent commands inside `demo/` are `npm run build` and `npm run watch`;
 both pass `--beautify`. The complete demo therefore requires Pro native and Pro
-WASI artifacts, while only the native artifact provides watch mode. Demo
-dependencies, Vite state, and `dist*` output remain local and are not included
-by the launcher's `files` package boundary. See
+WASI artifacts with `css-inlining`, while only the native artifact provides
+watch mode. Production CSS links are marked for inlining; development links
+remain unmarked so Vite owns CSS HMR. Demo dependencies, Vite state, and
+`dist*` output remain local and are not included by the launcher's `files`
+package boundary. See
 [`demo/README.md`](demo/README.md) for the source-to-manifest data flow.
 
 ## WASI fallback

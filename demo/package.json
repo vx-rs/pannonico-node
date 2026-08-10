@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@vx.rs/pannonico": "file:..",
+    "lightningcss": "1.33.0",
     "sass": "1.101.7",
     "typescript": "7.0.2",
     "vite": "8.1.5"

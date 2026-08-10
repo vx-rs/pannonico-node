@@ -43,8 +43,15 @@ footer,
   font-weight: 700;
 }
 
+.action:hover {
+  text-decoration-thickness: 0.2em;
+}
+
 .demo-shell {
   padding-block: clamp(4rem, 12vw, 9rem);
+  background-image: url("./accent-grid.svg");
+  background-position: right top;
+  background-repeat: no-repeat;
 
   h1 {
     max-width: 15ch;
@@ -75,4 +82,11 @@ footer,
 footer {
   padding-block: 2rem;
   border-top: 1px solid rgb(24 33 47 / 20%);
+}
+
+@media (max-width: 42rem) {
+  .site-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

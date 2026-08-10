@@ -1,10 +1,15 @@
 {{with .pannonico.vite}}
+  {{$vite := .}}
   {{if .client}}
     <script type="module" src="{{.client}}"></script>
   {{end}}
   {{with get .entries "app"}}
     {{range .css}}
-      <link rel="stylesheet" href="{{.}}" />
+      {{if eq $vite.mode "production"}}
+        <link rel="stylesheet" href="{{.}}" data-pannonico-inline-css />
+      {{else}}
+        <link rel="stylesheet" href="{{.}}" />
+      {{end}}
     {{end}}
     {{range .modulePreload}}
       <link rel="modulepreload" href="{{.}}" />
