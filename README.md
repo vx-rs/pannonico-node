@@ -69,20 +69,21 @@ npm run demo:assets
 ```
 
 `demo:typecheck` and `demo:assets` do not require Pannonico artifacts. After
-copying a matched native/WASI pair as described above, exercise the real
-connector:
+copying a matched Pro native/WASI pair as described above, exercise the real
+connector and its Pro-only readable HTML mode:
 
 ```sh
 npm run demo:build
 npm run demo:verify
 ```
 
-`demo:build` uses the native launcher artifact and lets Pannonico run the
-configured Vite build. `demo:verify` type-checks the TypeScript source, performs
-one native build, reuses that exact Vite manifest for a forced-WASI build, and
-requires both complete output trees to be byte-identical. It also verifies that
-the shared template partial publishes the hashed JavaScript and compiled SCSS
-for both the HTML and Markdown pages.
+`demo:build` uses `pannonico build --beautify` with the native launcher artifact
+and lets Pannonico run the configured Vite build. `demo:verify` type-checks the
+TypeScript source, performs one beautified native build, reuses that exact Vite
+manifest for a beautified forced-WASI build, and requires both complete output
+trees to be byte-identical. It also verifies readable two-space HTML nesting and
+that the shared template partial publishes the hashed JavaScript and compiled
+SCSS for both the HTML and Markdown pages.
 
 For a standalone fallback build, produce the manifest before forcing WASI;
 the confined WASI runtime does not start Vite or another host process:
@@ -98,10 +99,11 @@ With a Pro native artifact, start coordinated Pannonico and Vite development:
 npm run demo:watch
 ```
 
-The equivalent commands inside `demo/` are `npm run build` and `npm run watch`.
-Free and WASI artifacts support production builds but do not provide watch
-mode. Demo dependencies, Vite state, and `dist*` output remain local and are not
-included by the launcher's `files` package boundary. See
+The equivalent commands inside `demo/` are `npm run build` and `npm run watch`;
+both pass `--beautify`. The complete demo therefore requires Pro native and Pro
+WASI artifacts, while only the native artifact provides watch mode. Demo
+dependencies, Vite state, and `dist*` output remain local and are not included
+by the launcher's `files` package boundary. See
 [`demo/README.md`](demo/README.md) for the source-to-manifest data flow.
 
 ## WASI fallback

@@ -88,11 +88,13 @@ test("forwards build feature flags to the selected edition", async () => {
   const project = join(root, "site");
   mkdirSync(project);
   try {
-    const invocation = await prepareWasiInvocation(["build", "--minify", project], {
-      environment: {},
-    });
-    assert.deepEqual(invocation.args, ["build", "--minify", "/project"]);
-    assert.deepEqual(invocation.preopens, { "/project": project });
+    for (const flag of ["--beautify", "--minify"]) {
+      const invocation = await prepareWasiInvocation(["build", flag, project], {
+        environment: {},
+      });
+      assert.deepEqual(invocation.args, ["build", flag, "/project"]);
+      assert.deepEqual(invocation.preopens, { "/project": project });
+    }
   } finally {
     rmSync(root, { force: true, recursive: true });
   }

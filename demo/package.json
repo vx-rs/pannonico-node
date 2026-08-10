@@ -7,8 +7,8 @@
     "assets:build": "node run-vite.mjs build",
     "assets:dev": "node run-vite.mjs --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
-    "build": "pannonico build .",
-    "watch": "pannonico watch ."
+    "build": "pannonico build --beautify .",
+    "watch": "pannonico watch --beautify ."
   },
   "devDependencies": {
     "@vx.rs/pannonico": "file:..",

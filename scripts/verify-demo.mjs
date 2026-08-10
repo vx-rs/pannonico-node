@@ -148,6 +148,35 @@ const compareOutputTrees = (nativeFiles, wasiFiles) => {
 };
 
 /**
+ * verifyReadableHTML requires the demo's generated documents to follow Pro's fixed formatting.
+ *
+ * Both pages must have top-level document lines, two-space head/body nesting, deeper main content,
+ * LF-only output, and no final newline. It reads the parity-checked map without changing files.
+ */
+const verifyReadableHTML = (files) => {
+  for (const page of ["index.html", "guide.html"]) {
+    const html = files.get(page)?.toString("utf8");
+    if (!html) throw new Error(`Rendered demo page is missing: ${page}`);
+    const lines = html.split("\n");
+    const hasDocumentNesting =
+      lines[0] === "<!doctype html>" &&
+      lines[1]?.startsWith('<html lang="en"') &&
+      lines.includes("  <head>") &&
+      lines.includes("  <body>") &&
+      lines.some((line) => line.startsWith("    <main")) &&
+      lines.at(-1) === "</html>";
+    if (
+      !hasDocumentNesting ||
+      html.includes("\r") ||
+      html.endsWith("\n") ||
+      lines.some((line) => line.startsWith("\t"))
+    ) {
+      throw new Error(`${page} does not follow the fixed readable HTML output policy`);
+    }
+  }
+};
+
+/**
  * readViteEntry loads and validates the manifest record configured as Pannonico's app alias.
  *
  * It returns only a record with one JavaScript file and at least one CSS file. Missing, malformed,
@@ -249,24 +278,33 @@ const verifyDemo = async () => {
 
   const nativeEnvironment = { ...process.env };
   delete nativeEnvironment.PANNONICO_FORCE_WASI;
-  await runCommand(process.execPath, [launcherPath, "build", "--out", "dist-native", DEMO_ROOT], {
-    cwd: ROOT,
-    environment: nativeEnvironment,
-    label: "Native demo build",
-  });
-  await runCommand(process.execPath, [launcherPath, "build", "--out", "dist-wasi", DEMO_ROOT], {
-    cwd: ROOT,
-    environment: { ...process.env, PANNONICO_FORCE_WASI: "1" },
-    label: "Forced-WASI demo build",
-  });
+  await runCommand(
+    process.execPath,
+    [launcherPath, "build", "--beautify", "--out", "dist-native", DEMO_ROOT],
+    {
+      cwd: ROOT,
+      environment: nativeEnvironment,
+      label: "Native demo build",
+    },
+  );
+  await runCommand(
+    process.execPath,
+    [launcherPath, "build", "--beautify", "--out", "dist-wasi", DEMO_ROOT],
+    {
+      cwd: ROOT,
+      environment: { ...process.env, PANNONICO_FORCE_WASI: "1" },
+      label: "Forced-WASI demo build",
+    },
+  );
 
   const nativeFiles = await readOutputTree(join(DEMO_ROOT, "dist-native"));
   const wasiFiles = await readOutputTree(join(DEMO_ROOT, "dist-wasi"));
   compareOutputTrees(nativeFiles, wasiFiles);
+  verifyReadableHTML(nativeFiles);
   verifyPublishedAssets(nativeFiles, await readViteEntry());
 
   process.stdout.write(
-    `Verified ${nativeFiles.size} byte-identical native/WASI files and the Vite manifest boundary.\n`,
+    `Verified ${nativeFiles.size} byte-identical beautified native/WASI files and the Vite manifest boundary.\n`,
   );
 };
 

@@ -13,7 +13,7 @@ npm run demo:typecheck
 npm run demo:assets
 ```
 
-After copying a matched native and WASI artifact pair into the root
+After copying a matched Pro native and Pro WASI artifact pair into the root
 `artifacts/` directory, build or verify the complete site:
 
 ```sh
@@ -29,10 +29,15 @@ npm run demo:assets
 PANNONICO_FORCE_WASI=1 npm run demo:build
 ```
 
-The equivalent command from this directory is `npm run build`. A Pro native
-artifact can coordinate Pannonico and Vite development with `npm run watch`
-here or `npm run demo:watch` at the root. Free native and WASI artifacts do not
-provide watch mode.
+The equivalent command from this directory is `npm run build`. Both it and
+`npm run watch` pass the Pro-only `--beautify` flag, so generated HTML and
+Markdown pages use stable two-space nesting after template/Vite integration and
+before validation. A Pro native artifact can coordinate Pannonico and Vite
+development with `npm run watch` here or `npm run demo:watch` at the root.
+
+`demo:verify` uses the same flag for native and forced-WASI builds, requires
+their complete output trees to be byte-identical, and checks readable nesting,
+LF line endings, and the no-final-newline contract on both pages.
 
 `src/app.ts` imports `src/app.scss`. Vite writes a hashed bundle, compiled CSS,
 and `.pannonico/vite/.vite/manifest.json`. Pannonico maps the manifest's
