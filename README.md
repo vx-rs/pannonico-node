@@ -1,27 +1,64 @@
-# Pannonico
+# Pannonico local launcher
 
-`@vx.rs/pannonico` is the verified Node.js launcher for the Pannonico static
-site generator. It selects an exact-version native package for Linux, macOS,
-or Windows and uses the regular `@vx.rs/pannonico-wasi` dependency when the
-native package is unavailable or the host tuple is unsupported.
+`@vx.rs/pannonico` is a private prototype launcher for locally built Pannonico
+binaries. It runs a native binary when one is available for the current host
+and otherwise uses the local WASI build. It does not download artifacts,
+resolve platform packages, or publish anything.
 
-## Requirements and installation
+## Local development
 
-Pannonico requires Node.js 24 or newer.
+Build one edition in the sibling Go repository:
 
 ```sh
-npm install --save-dev @vx.rs/pannonico
-npx pannonico scaffold site
-npx pannonico build site
+cd ../pannonico-go
+mkdir -p build/free/native
+CGO_ENABLED=0 go build -mod=vendor -trimpath \
+  -o build/free/native/pannonico ./cmd/pannonico
+CGO_ENABLED=0 GOOS=wasip1 GOARCH=wasm go build -mod=vendor -trimpath \
+  -o build/free/pannonico.wasm ./cmd/pannonico
 ```
 
-The package has no third-party runtime dependencies, install scripts, or
-runtime downloads. It verifies the selected package identity, exact version,
-target metadata, and SHA-256 checksum immediately before execution.
+Copy that edition into this launcher's fixed artifact paths:
+
+```sh
+cd ../pannonico-node
+mkdir -p artifacts/native
+cp ../pannonico-go/build/free/native/pannonico artifacts/native/pannonico
+cp ../pannonico-go/build/free/pannonico.wasm artifacts/pannonico.wasm
+```
+
+Use `build/pro/...` instead to test the Pro edition. On Windows, name the
+native artifact `artifacts/native/pannonico.exe`. Always replace the native and
+WASI files together. Mixing a Free artifact with a Pro artifact can make native
+and fallback execution report different capabilities.
+
+Install the development tools, run the launcher tests, and create the global
+development link:
+
+```sh
+npm ci --ignore-scripts
+npm test
+npm link
+```
+
+Then link it into a Vite or other consumer project:
+
+```sh
+cd ../my-project
+npm link @vx.rs/pannonico
+npx pannonico --version
+```
+
+Run `npm unlink @vx.rs/pannonico` in the consumer when the local test is done.
+
+The sibling
+`../pannonico-go/docs/local-development.md` document is the canonical workflow
+for complete Go checks, Free/Pro artifact builds, Vite parity, Pro watch, and
+private Git snapshot testing.
 
 ## WASI fallback
 
-Set `PANNONICO_FORCE_WASI=1` to select the portable WASI runtime explicitly:
+Set `PANNONICO_FORCE_WASI=1` to exercise the portable runtime explicitly:
 
 ```sh
 PANNONICO_FORCE_WASI=1 npx pannonico build site
@@ -32,18 +69,39 @@ The WASI host preopens only the selected project at `/project`, forwards only
 path options must remain inside the selected project. Native-only commands are
 reported by Pannonico with exit status `4`.
 
-An installed native package with invalid metadata, a version mismatch, or a
-checksum mismatch is a security failure and never causes an implicit WASI
-fallback. If the operating system blocks a verified native executable, the
-launcher reports how to retry explicitly with `PANNONICO_FORCE_WASI=1`.
+The launcher falls back when the native artifact is absent or the host is not
+supported. A symlink, non-file, or non-executable native artifact is treated as
+an error. Set `PANNONICO_LAUNCHER_DEBUG=1` for safe host, selection, and fallback
+diagnostics on standard error.
 
-## Launcher diagnostics
+## Private Git dependency
 
-`PANNONICO_LAUNCHER_DEBUG=1` writes launcher version, host tuple, selected
-package, verification completion, fallback reason, and execution mode to
-standard error. Normal operation emits no launcher diagnostics. Debug output
-does not include absolute package paths, checksum values, or environment
-contents.
+A consumer may pin this repository directly during the prototype phase:
 
-Release construction and publication are described in
-[`docs/RELEASE.md`](./docs/RELEASE.md).
+```json
+{
+  "devDependencies": {
+    "@vx.rs/pannonico": "git+ssh://git@github.com/vx-rs/pannonico-node.git#<commit>"
+  }
+}
+```
+
+Git dependencies are immutable snapshots, not live sibling checkouts. The
+selected native and WASI artifacts must be committed in that private snapshot
+if another machine or CI job needs them. Because ordinary artifact copies are
+ignored, create such a snapshot deliberately after copying one matched pair:
+
+```sh
+git add -f artifacts/native/pannonico artifacts/pannonico.wasm
+git commit -m "chore: snapshot local Pannonico artifacts"
+git rev-parse HEAD
+```
+
+Use `artifacts/native/pannonico.exe` in the first command for a Windows-native
+snapshot. Pin the commit printed by the final command in the consumer's
+`package.json`. Do not pin the preceding source-only commit because it does not
+contain the ignored artifacts.
+
+There is deliberately no `prepare` script, generated package graph, registry
+release, or install-time download. For normal same-machine development,
+`npm link` is the shorter feedback loop and artifacts remain untracked.
