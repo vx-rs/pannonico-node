@@ -194,11 +194,11 @@ const compareOutputTrees = (nativeFiles, wasiFiles) => {
 /**
  * verifyReadableHTML requires the demo's generated documents to follow Pro's fixed formatting.
  *
- * Both pages must have top-level document lines, two-space head/body nesting, deeper main content,
+ * All pages must have top-level document lines, two-space head/body nesting, deeper main content,
  * LF-only output, and no final newline. It reads the parity-checked map without changing files.
  */
 const verifyReadableHTML = (files) => {
-  for (const page of ["index.html", "guide.html"]) {
+  for (const page of ["index.html", "inlined.html", "guide.html"]) {
     const html = files.get(page)?.toString("utf8");
     if (!html) throw new Error(`Rendered demo page is missing: ${page}`);
     const lines = html.split("\n");
@@ -246,14 +246,13 @@ const readViteEntry = async () => {
 };
 
 /**
- * verifyPublishedAssets proves Vite output was published while selected CSS moved into HTML.
+ * verifyPublishedAssets proves one shared Vite entry supports linked and inlined page policies.
  *
- * It reads only the already parity-checked native output map. Missing files, retained selected
- * links, absent inlined declarations or residual rules, wrong URL rebasing, and missing
- * TypeScript/SCSS markers reject with a focused integration error.
+ * It reads only the already parity-checked native output map. Missing files, page-policy drift,
+ * wrong URL rebasing, and missing TypeScript/SCSS markers reject with a focused integration error.
  */
 const verifyPublishedAssets = (files, entry) => {
-  const pages = ["index.html", "guide.html"];
+  const pages = ["index.html", "inlined.html", "guide.html"];
   const assets = [entry.file, ...entry.css, ...entry.assets];
   for (const asset of assets) {
     if (!files.has(asset)) throw new Error(`Manifest asset was not published: ${asset}`);
@@ -264,19 +263,37 @@ const verifyPublishedAssets = (files, entry) => {
     if (!html.includes(`/${entry.file}`)) {
       throw new Error(`${page} does not retain the Vite JavaScript entry`);
     }
-    for (const stylesheet of entry.css) {
-      if (html.includes(`href="/${stylesheet}"`) || html.includes("data-pannonico-inline-css")) {
-        throw new Error(`${page} retains a selected production stylesheet link`);
-      }
-    }
-    if (!html.includes("style=") || !html.includes("@media")) {
-      throw new Error(`${page} lacks inlined declarations or residual media CSS`);
-    }
-    const rebasedAsset = entry.assets.find((asset) => asset.includes("accent-grid"));
-    if (!rebasedAsset || !html.includes(`url(&quot;/${rebasedAsset}&quot;)`)) {
-      throw new Error(`${page} lacks the root-relative inlined Vite asset URL`);
+    if (html.includes("data-pannonico-inline-css")) {
+      throw new Error(`${page} retains a Pannonico CSS marker`);
     }
   }
+
+  for (const page of ["index.html", "guide.html"]) {
+    const html = files.get(page).toString("utf8");
+    for (const stylesheet of entry.css) {
+      if (!html.includes(`href="/${stylesheet}"`)) {
+        throw new Error(`${page} does not retain the external production stylesheet`);
+      }
+    }
+    if (html.includes("style=") || html.includes("<style") || html.includes("@media")) {
+      throw new Error(`${page} unexpectedly contains generated inline CSS`);
+    }
+  }
+
+  const inlinedHTML = files.get("inlined.html").toString("utf8");
+  for (const stylesheet of entry.css) {
+    if (inlinedHTML.includes(`href="/${stylesheet}"`)) {
+      throw new Error("inlined.html retains its selected production stylesheet link");
+    }
+  }
+  if (!inlinedHTML.includes("style=") || !inlinedHTML.includes("@media")) {
+    throw new Error("inlined.html lacks inlined declarations or residual media CSS");
+  }
+  const rebasedAsset = entry.assets.find((asset) => asset.includes("accent-grid"));
+  if (!rebasedAsset || !inlinedHTML.includes(`url(&quot;/${rebasedAsset}&quot;)`)) {
+    throw new Error("inlined.html lacks the root-relative inlined Vite asset URL");
+  }
+
   const script = files.get(entry.file).toString("utf8");
   if (!script.includes("Pannonico demo TypeScript is active.")) {
     throw new Error("The published JavaScript does not contain the TypeScript demo marker.");

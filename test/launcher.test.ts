@@ -256,6 +256,7 @@ test(
   async () => {
     const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-signal-"));
     const countPath = join(root, "signal-count");
+    const readyPath = join(root, "ready");
     const runner = new URL("../lib/run-native.js", import.meta.url).href;
     const childProgram = `
       const { writeFileSync } = await import("node:fs");
@@ -267,7 +268,7 @@ test(
           process.exit(0);
         }, 100);
       });
-      process.stdout.write("ready:" + process.pid + "\\n");
+      writeFileSync(${JSON.stringify(readyPath)}, String(process.pid));
       setInterval(() => {}, 1000);
     `;
     const launcherProgram = `
@@ -281,7 +282,7 @@ test(
     `;
     const launcher = spawn(process.execPath, ["--input-type=module", "--eval", launcherProgram], {
       detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["ignore", "ignore", "pipe"],
     });
     let stderr = "";
     launcher.stderr.setEncoding("utf8");
@@ -290,25 +291,44 @@ test(
     });
     let nativePID;
     let cleanupError;
+    let exitTimeout;
     try {
-      const ready = await Promise.race([
-        once(launcher.stdout, "data").then(([value]) => String(value)),
-        once(launcher, "exit").then(([status, signal]) => {
-          throw new Error(
-            `signal fixture exited before readiness with code ${status} and signal ${signal ?? "none"}: ${stderr}`,
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        try {
+          nativePID = Number(readFileSync(readyPath, "utf8"));
+          break;
+        } catch (error) {
+          if (!error || error.code !== "ENOENT") throw error;
+          if (launcher.exitCode !== null || launcher.signalCode !== null) {
+            throw new Error(
+              `signal fixture exited before readiness with code ${launcher.exitCode} and signal ${launcher.signalCode ?? "none"}: ${stderr}`,
+            );
+          }
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+      }
+      assert.ok(
+        Number.isInteger(nativePID) && nativePID > 0,
+        `signal fixture did not become ready: ${stderr}`,
+      );
+      const launcherExit = once(launcher, "exit");
+      process.kill(-launcher.pid, "SIGINT");
+      const [status, signal] = await Promise.race([
+        launcherExit,
+        new Promise((_, reject) => {
+          exitTimeout = setTimeout(
+            () => reject(new Error(`signal fixture did not exit after SIGINT: ${stderr}`)),
+            2_000,
           );
         }),
       ]);
-      const match = /^ready:(\d+)\n$/.exec(ready);
-      assert.ok(match, `unexpected signal fixture readiness ${JSON.stringify(ready)}`);
-      nativePID = Number(match[1]);
-      const launcherExit = once(launcher, "exit");
-      process.kill(-launcher.pid, "SIGINT");
-      const [status, signal] = await launcherExit;
+      clearTimeout(exitTimeout);
+      exitTimeout = undefined;
       assert.equal(signal, null, stderr);
       assert.equal(status, 0, stderr);
       assert.equal(readFileSync(countPath, "utf8"), "1");
     } finally {
+      clearTimeout(exitTimeout);
       if (launcher.exitCode === null && launcher.signalCode === null) {
         try {
           process.kill(-launcher.pid, "SIGKILL");

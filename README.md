@@ -83,10 +83,12 @@ that both local artifacts advertise the Pro-only `css-inlining` capability. It
 type-checks the TypeScript source, performs one beautified native build, reuses
 that exact Vite manifest for a beautified forced-WASI build, and requires both
 complete output trees to be byte-identical. It also verifies readable two-space
-HTML nesting, generated style attributes, residual media CSS, removal of the
-marked production CSS link, root-relative rebasing of the SCSS asset URL, the
-retained JavaScript tag, and publication of the compiled CSS, JavaScript, and
-SVG assets.
+HTML nesting and both CSS policies from one shared Vite entry. `index.html` and
+the Markdown guide retain the compiled stylesheet link without generated inline
+CSS. `inlined.html` uses `data-pannonico-inline-css`, contains generated style
+attributes and residual media CSS, removes the selected link, and rebases the
+SCSS asset URL. Every page retains the JavaScript tag, and all compiled CSS,
+JavaScript, and SVG assets remain published.
 
 For a standalone fallback build, produce the manifest before forcing WASI;
 the confined WASI runtime does not start Vite or another host process:
@@ -105,10 +107,11 @@ npm run demo:watch
 The equivalent commands inside `demo/` are `npm run build` and `npm run watch`;
 both pass `--beautify`. The complete demo therefore requires Pro native and Pro
 WASI artifacts with `css-inlining`, while only the native artifact provides
-watch mode. Production CSS links are marked for inlining; development links
-remain unmarked so Vite owns CSS HMR. Demo dependencies, Vite state, and
-`dist*` output remain local and are not included by the launcher's `files`
-package boundary. See
+watch mode. CSS inlining has no project setting or CLI flag: the shared partial
+marks the production link only for the page whose ordinary `inlineCSS`
+frontmatter is true. Development links remain unmarked so Vite owns CSS HMR.
+Demo dependencies, Vite state, and `dist*` output remain local and are not
+included by the launcher's `files` package boundary. See
 [`demo/README.md`](demo/README.md) for the source-to-manifest data flow.
 
 ## WASI fallback

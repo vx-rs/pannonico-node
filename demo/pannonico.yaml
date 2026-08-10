@@ -1,8 +1,5 @@
 version: 1
 
-css:
-  inline: true
-
 vite:
   root: .
   output: .pannonico/vite

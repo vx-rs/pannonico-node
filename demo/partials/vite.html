@@ -1,3 +1,4 @@
+{{$inlineCSS := get .page "inlineCSS"}}
 {{with .pannonico.vite}}
   {{$vite := .}}
   {{if .client}}
@@ -6,7 +7,11 @@
   {{with get .entries "app"}}
     {{range .css}}
       {{if eq $vite.mode "production"}}
-        <link rel="stylesheet" href="{{.}}" data-pannonico-inline-css />
+        {{if $inlineCSS}}
+          <link rel="stylesheet" href="{{.}}" data-pannonico-inline-css />
+        {{else}}
+          <link rel="stylesheet" href="{{.}}" />
+        {{end}}
       {{else}}
         <link rel="stylesheet" href="{{.}}" />
       {{end}}
