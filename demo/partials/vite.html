@@ -1,0 +1,14 @@
+{{with .pannonico.vite}}
+  {{if .client}}
+    <script type="module" src="{{.client}}"></script>
+  {{end}}
+  {{with get .entries "app"}}
+    {{range .css}}
+      <link rel="stylesheet" href="{{.}}" />
+    {{end}}
+    {{range .modulePreload}}
+      <link rel="modulepreload" href="{{.}}" />
+    {{end}}
+    <script type="module" src="{{.file}}"></script>
+  {{end}}
+{{end}}

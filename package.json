@@ -8,6 +8,9 @@
   "bin": {
     "pannonico": "./bin/pannonico.js"
   },
+  "workspaces": [
+    "demo"
+  ],
   "files": [
     "artifacts/",
     "bin/",
@@ -24,7 +27,12 @@
     "lint": "oxlint --deny-warnings .",
     "lint:fix": "oxlint . --fix",
     "test": "node --test test/*.test.ts",
-    "test:coverage": "node --test --experimental-test-coverage test/*.test.ts"
+    "test:coverage": "node --test --experimental-test-coverage test/*.test.ts",
+    "demo:assets": "npm run assets:build --workspace @vx.rs/pannonico-demo",
+    "demo:typecheck": "npm run typecheck --workspace @vx.rs/pannonico-demo",
+    "demo:build": "npm run build --workspace @vx.rs/pannonico-demo",
+    "demo:watch": "npm run watch --workspace @vx.rs/pannonico-demo",
+    "demo:verify": "node scripts/verify-demo.mjs"
   },
   "devDependencies": {
     "oxfmt": "^0.58.0",

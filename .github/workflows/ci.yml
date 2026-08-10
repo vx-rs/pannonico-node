@@ -23,3 +23,5 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run test:coverage
+      - run: npm run demo:typecheck
+      - run: npm run demo:assets
