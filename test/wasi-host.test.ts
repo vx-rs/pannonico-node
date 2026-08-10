@@ -111,7 +111,7 @@ test("runs preview1 with inherited stream descriptors and exact guest status", a
       return 31;
     }
   }
-  const status = await runWasiExecutable("/verified/pannonico.wasm", ["--version"], {
+  const status = await runWasiExecutable("/local/pannonico.wasm", ["--version"], {
     environment: {},
     stdin: { fd: 10 },
     stdout: { fd: 11 },
