@@ -30,7 +30,7 @@
     "test:coverage": "node --test --experimental-test-coverage test/*.test.ts",
     "demo:assets": "npm run assets:build --workspace @vx.rs/pannonico-demo",
     "demo:typecheck": "npm run typecheck --workspace @vx.rs/pannonico-demo",
-    "demo:build": "npm run build --workspace @vx.rs/pannonico-demo",
+    "demo:build": "node bin/pannonico.js build --beautify demo",
     "demo:watch": "npm run watch --workspace @vx.rs/pannonico-demo",
     "demo:verify": "node scripts/verify-demo.mjs"
   },
