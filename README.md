@@ -58,7 +58,8 @@ private Git snapshot testing.
 
 ## Internal Vite demo
 
-The private `demo` npm workspace is a complete local consumer that keeps its
+The private `demo` npm workspace is a comprehensive integration fixture, not
+the minimum fresh-project setup. It is a complete local consumer that keeps its
 Vite, Sass, Lightning CSS, and TypeScript dependencies separate from the
 launcher package. One root install prepares both packages:
 
@@ -120,12 +121,20 @@ Set `PANNONICO_FORCE_WASI=1` to exercise the portable runtime explicitly:
 
 ```sh
 PANNONICO_FORCE_WASI=1 npx pannonico build site
+PANNONICO_FORCE_WASI=1 npx pannonico build article.md --out dist
 ```
 
-The WASI host preopens only the selected project at `/project`, forwards only
+For a positional file, the host preopens only its real parent and forwards the
+guest file identity below `/project`. For a directory, it preopens that selected
+project at `/project`. It forwards only
 `SOURCE_DATE_EPOCH`, and preserves standard streams and exit status. Absolute
-path options must remain inside the selected project. Native-only commands are
-reported by Pannonico with exit status `4`.
+and relative path options must remain inside that one preopen. `--data` works
+only within it. The host recognizes repeated `--data-url` syntax but both WASI
+editions reject the Pro-native-only capability. Native-only commands and
+configured remote data are reported by Pannonico with exit status `4`.
+
+`PANNONICO_FORCE_WASI=1 npx pannonico scaffold --min site` creates the same
+config-only starter as the native command.
 
 The launcher falls back when the native artifact is absent or the host is not
 supported. A symlink, non-file, or non-executable native artifact is treated as

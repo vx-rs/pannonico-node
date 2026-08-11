@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -77,6 +77,54 @@ test("creates a scaffold root before preopening it", async () => {
   try {
     const invocation = await prepareWasiInvocation(["scaffold", "--vite", project]);
     assert.deepEqual(invocation.args, ["scaffold", "--vite", "/project"]);
+    assert.deepEqual(invocation.preopens, { "/project": project });
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
+test("preopens a positional source parent and forwards new syntax", async () => {
+  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const source = join(root, "article.md");
+  const data = join(root, "external-data");
+  writeFileSync(source, "# Article\n");
+  mkdirSync(data);
+  try {
+    const invocation = await prepareWasiInvocation([
+      "build",
+      "--data",
+      data,
+      "--data-url",
+      "https://example.test/one,two.yaml",
+      "--data-url=https://example.test/navigation.json",
+      source,
+    ]);
+    assert.deepEqual(invocation.preopens, { "/project": root });
+    assert.deepEqual(invocation.args, [
+      "build",
+      "--data",
+      "/project/external-data",
+      "--data-url",
+      "https://example.test/one,two.yaml",
+      "--data-url",
+      "https://example.test/navigation.json",
+      "/project/article.md",
+    ]);
+    await assert.rejects(
+      prepareWasiInvocation(["build", "--data", "../outside", source]),
+      /outside the WASI project root/,
+    );
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
+test("forwards the minimal scaffold mode", async () => {
+  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const project = join(root, "minimal-site");
+  try {
+    const invocation = await prepareWasiInvocation(["scaffold", "--min", project]);
+    assert.deepEqual(invocation.args, ["scaffold", "--min", "/project"]);
     assert.deepEqual(invocation.preopens, { "/project": project });
   } finally {
     rmSync(root, { force: true, recursive: true });
