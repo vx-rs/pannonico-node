@@ -221,15 +221,16 @@ const verifyReadableHTML = (files) => {
 };
 
 /**
- * readViteEntry loads and validates the manifest record configured as Pannonico's app alias.
+ * readViteManifestContract loads records configured as Pannonico entry and resource aliases.
  *
  * It returns only a record with one JavaScript file, at least one CSS file, and an asset list.
  * Missing, malformed, or incompatible manifest data rejects before rendered-page assertions run.
  */
-const readViteEntry = async () => {
+const readViteManifestContract = async () => {
   const manifestPath = join(DEMO_ROOT, ".pannonico", "vite", ".vite", "manifest.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   const entry = manifest["src/app.ts"];
+  const resource = manifest["src/accent-grid.svg"];
   if (
     !entry ||
     typeof entry !== "object" ||
@@ -242,7 +243,12 @@ const readViteEntry = async () => {
   ) {
     throw new Error("The Vite manifest does not contain the configured src/app.ts entry and CSS.");
   }
-  return entry;
+  if (!resource || typeof resource !== "object" || typeof resource.file !== "string") {
+    throw new Error(
+      "The Vite manifest does not contain the configured src/accent-grid.svg resource.",
+    );
+  }
+  return { entry, resource };
 };
 
 /**
@@ -251,9 +257,9 @@ const readViteEntry = async () => {
  * It reads only the already parity-checked native output map. Missing files, page-policy drift,
  * wrong URL rebasing, and missing TypeScript/SCSS markers reject with a focused integration error.
  */
-const verifyPublishedAssets = (files, entry) => {
+const verifyPublishedAssets = (files, entry, resource) => {
   const pages = ["index.html", "inlined.html", "guide.html"];
-  const assets = [entry.file, ...entry.css, ...entry.assets];
+  const assets = [...new Set([entry.file, ...entry.css, ...entry.assets, resource.file])];
   for (const asset of assets) {
     if (!files.has(asset)) throw new Error(`Manifest asset was not published: ${asset}`);
   }
@@ -262,6 +268,9 @@ const verifyPublishedAssets = (files, entry) => {
     if (!html) throw new Error(`Rendered demo page is missing: ${page}`);
     if (!html.includes(`/${entry.file}`)) {
       throw new Error(`${page} does not retain the Vite JavaScript entry`);
+    }
+    if (!html.includes(`rel="preload" as="image" href="/${resource.file}"`)) {
+      throw new Error(`${page} does not render the configured Vite resource alias`);
     }
     if (html.includes("data-pannonico-inline-css")) {
       throw new Error(`${page} retains a Pannonico CSS marker`);
@@ -407,7 +416,8 @@ const verifyDemo = async () => {
   const wasiFiles = await readOutputTree(join(DEMO_ROOT, "dist-wasi"));
   compareOutputTrees(nativeFiles, wasiFiles);
   verifyReadableHTML(nativeFiles);
-  verifyPublishedAssets(nativeFiles, await readViteEntry());
+  const { entry, resource } = await readViteManifestContract();
+  verifyPublishedAssets(nativeFiles, entry, resource);
 
   process.stdout.write(
     `Verified ${nativeFiles.size} byte-identical beautified native/WASI files and the Vite manifest boundary.\n`,

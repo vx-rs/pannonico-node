@@ -8,6 +8,8 @@ vite:
   publicPath: /
   entries:
     app: src/app.ts
+  resources:
+    accentGrid: src/accent-grid.svg
   buildCommand:
     executable: node
     arguments: [run-vite.mjs, build]

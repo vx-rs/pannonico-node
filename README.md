@@ -89,7 +89,8 @@ the Markdown guide retain the compiled stylesheet link without generated inline
 CSS. `inlined.html` uses `data-pannonico-inline-css`, contains generated style
 attributes and residual media CSS, removes the selected link, and rebases the
 SCSS asset URL. Every page retains the JavaScript tag, and all compiled CSS,
-JavaScript, and SVG assets remain published.
+JavaScript, and SVG assets remain published. The site also renders a resource-
+alias image preload whose tag policy stays in the demo template.
 
 For a standalone fallback build, produce the manifest before forcing WASI;
 the confined WASI runtime does not start Vite or another host process:

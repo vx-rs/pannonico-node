@@ -64,9 +64,17 @@ resolve the same URL from the published stylesheet.
 Vite writes a hashed bundle, compiled CSS, SVG, and
 `.pannonico/vite/.vite/manifest.json`. Pannonico maps the manifest's
 `src/app.ts` entry to the `app` alias used by `partials/vite.html`, then renders
-the HTML and Markdown pages through `layouts/default.html`. The compiled CSS
-and SVG remain published because the external pages still use them even though
-the inlined page consumes its selected production link.
+the HTML and Markdown pages through `layouts/default.html`. It separately maps
+`src/accent-grid.svg` to the `accentGrid` resource alias, whose preload tag is
+site-owned. The compiled CSS and SVG remain published because the external
+pages still use them even though the inlined page consumes its selected
+production link.
+
+Development keeps Vite and Pannonico on separate loopback origins. The Vite
+configuration allows only the default Pannonico origin, publishes its exact
+origin, and uses a fixed strict port. Change the CORS origin together with the
+Pannonico `watch --port` value when using another local port; do not replace it
+with unrestricted CORS.
 
 Generated Vite state and `dist*` site output are ignored. Do not commit them or
 add a second lockfile under this workspace.
