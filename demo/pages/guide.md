@@ -16,6 +16,10 @@ The Pro renderer also expands HTML, H~2~O, 29^th^, ==highlighted text==,
 ++inserted text++, and ~~deleted text~~. This sentence has a named note[^rich]
 and an inline note^[Rendered by the same plugin composition.].
 
+::: Build Note
+The demo owns the presentation of this parsed **Markdown container**.
+:::
+
 [Return to the demo](/)
 
 *[HTML]: Hyper Text Markup Language

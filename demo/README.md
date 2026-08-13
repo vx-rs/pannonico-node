@@ -45,11 +45,14 @@ a matched Pro native/WASI pair; `demo:verify` checks `css-inlining` and
 `rich-markdown` on both
 artifacts before starting either build.
 
-`pages/guide.md` exercises every rich-Markdown plugin. Verification requires
+`pages/guide.md` exercises all nine rich-Markdown plugins. Verification requires
 the native and forced-WASI outputs to contain the same heading anchor,
-footnotes, abbreviation, subscript, superscript, mark, insertion, and deletion
-HTML. The guide is excluded from Oxfmt because its generic Markdown formatter
-rewrites the single-tilde subscript example as double-tilde deletion syntax.
+footnotes, abbreviation, container, subscript, superscript, mark, insertion,
+and deletion HTML. The demo SCSS customizes `pannonico-container` and its
+`pannonico-container--build-note` modifier; Pannonico intentionally provides no
+default container theme. The guide is excluded from Oxfmt because its generic
+Markdown formatter rewrites the single-tilde subscript example as double-tilde
+deletion syntax.
 
 The verifier uses `--beautify` for native and forced-WASI builds, requires their
 complete output trees to be byte-identical, and checks readable nesting, LF

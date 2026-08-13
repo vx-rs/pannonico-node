@@ -221,7 +221,7 @@ const verifyReadableHTML = (files) => {
 };
 
 /**
- * verifyRichMarkdown requires all eight Pro plugins in the shared native/WASI guide output.
+ * verifyRichMarkdown requires all nine Pro plugins in the shared native/WASI guide output.
  *
  * The complete output trees have already passed byte parity, so one guide check covers both
  * runtime targets while still naming the missing semantic element in a focused failure.
@@ -237,6 +237,7 @@ const verifyRichMarkdown = (files) => {
     "<mark>highlighted text</mark>",
     "<ins>inserted text</ins>",
     "<del>deleted text</del>",
+    'class="pannonico-container pannonico-container--build-note"',
     'class="footnote-ref"',
     'class="footnotes-list"',
   ]) {

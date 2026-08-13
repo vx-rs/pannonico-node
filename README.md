@@ -88,8 +88,10 @@ complete output trees to be byte-identical. It also verifies readable two-space
 HTML nesting and both CSS policies from one shared Vite entry. `index.html` and
 the Markdown guide retain the compiled stylesheet link without generated inline
 CSS. The guide also verifies heading anchors, footnotes, abbreviations,
-subscript, superscript, marks, insertions, deletions, and one consolidated
-footnote group at the end of `.pannonico.content`, before the layout footer.
+containers, subscript, superscript, marks, insertions, deletions, and one
+consolidated footnote group at the end of `.pannonico.content`, before the
+layout footer. Its SCSS customizes the stable container base class and generated
+modifier because Pannonico provides no default container theme.
 `inlined.html` uses
 `data-pannonico-inline-css`, contains generated style
 attributes and residual media CSS, removes the selected link, and rebases the
