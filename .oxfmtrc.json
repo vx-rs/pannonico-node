@@ -1,3 +1,3 @@
 {
-  "ignorePatterns": ["demo/**/*.html"]
+  "ignorePatterns": ["demo/**/*.html", "demo/pages/guide.md"]
 }

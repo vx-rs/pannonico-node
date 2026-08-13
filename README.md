@@ -80,13 +80,21 @@ npm run demo:verify
 
 `demo:build` uses `pannonico build --beautify` with the native launcher artifact
 and lets Pannonico run the configured Vite build. `demo:verify` first confirms
-that both local artifacts advertise the Pro-only `css-inlining` capability. It
+that both local artifacts advertise the Pro-only `css-inlining` and
+`rich-markdown` capabilities. It
 type-checks the TypeScript source, performs one beautified native build, reuses
 that exact Vite manifest for a beautified forced-WASI build, and requires both
 complete output trees to be byte-identical. It also verifies readable two-space
 HTML nesting and both CSS policies from one shared Vite entry. `index.html` and
 the Markdown guide retain the compiled stylesheet link without generated inline
-CSS. `inlined.html` uses `data-pannonico-inline-css`, contains generated style
+CSS. The guide also verifies heading anchors, footnotes, abbreviations,
+containers, subscript, superscript, marks, insertions, deletions, syntax token
+classes, and one consolidated footnote group at the end of
+`.pannonico.content`, before the layout footer. Its SCSS customizes the stable
+container and code wrappers, generated container modifier, and scoped token
+classes because Pannonico provides no default container or code theme.
+`inlined.html` uses
+`data-pannonico-inline-css`, contains generated style
 attributes and residual media CSS, removes the selected link, and rebases the
 SCSS asset URL. Every page retains the JavaScript tag, and all compiled CSS,
 JavaScript, and SVG assets remain published. The site also renders a resource-
@@ -108,7 +116,7 @@ npm run demo:watch
 
 The equivalent commands inside `demo/` are `npm run build` and `npm run watch`;
 both pass `--beautify`. The complete demo therefore requires Pro native and Pro
-WASI artifacts with `css-inlining`, while only the native artifact provides
+WASI artifacts with `css-inlining` and `rich-markdown`, while only the native artifact provides
 watch mode. CSS inlining has no project setting or CLI flag: the shared partial
 marks the production link only for the page whose ordinary `inlineCSS`
 frontmatter is true. Development links remain unmarked so Vite owns CSS HMR.
