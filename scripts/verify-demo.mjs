@@ -221,6 +221,46 @@ const verifyReadableHTML = (files) => {
 };
 
 /**
+ * verifyRichMarkdown requires all eight Pro plugins in the shared native/WASI guide output.
+ *
+ * The complete output trees have already passed byte parity, so one guide check covers both
+ * runtime targets while still naming the missing semantic element in a focused failure.
+ */
+const verifyRichMarkdown = (files) => {
+  const html = files.get("guide.html")?.toString("utf8");
+  if (!html) throw new Error("Rendered rich-Markdown guide is missing");
+  for (const expected of [
+    'id="one-manifest-two-runtimes"',
+    '<abbr title="Hyper Text Markup Language">HTML</abbr>',
+    "H<sub>2</sub>O",
+    "29<sup>th</sup>",
+    "<mark>highlighted text</mark>",
+    "<ins>inserted text</ins>",
+    "<del>deleted text</del>",
+    'class="footnote-ref"',
+    'class="footnotes-list"',
+  ]) {
+    if (!html.includes(expected)) {
+      throw new Error(`guide.html lacks rich-Markdown output: ${expected}`);
+    }
+  }
+  const footnoteGroup = html.lastIndexOf('class="footnotes"');
+  const pageContentEnd = html.lastIndexOf("</main>");
+  const layoutFooter = html.lastIndexOf("<footer>");
+  if (
+    html.split('class="footnotes"').length !== 2 ||
+    footnoteGroup < pageContentEnd ||
+    layoutFooter < footnoteGroup ||
+    !html.includes('id="fn1"') ||
+    !html.includes('id="fnref1-1"')
+  ) {
+    throw new Error(
+      "guide.html does not contain one finalized footnote group between page content and layout output",
+    );
+  }
+};
+
+/**
  * readViteManifestContract loads records configured as Pannonico entry and resource aliases.
  *
  * It returns only a record with one JavaScript file, at least one CSS file, and an asset list.
@@ -317,12 +357,12 @@ const verifyPublishedAssets = (files, entry, resource) => {
 };
 
 /**
- * requireCSSInliningCapabilities checks both launcher selection paths before any demo build.
+ * requireDemoCapabilities checks both launcher selection paths before any demo build.
  *
  * A mixed or Free artifact pair receives one actionable copy instruction rather than failing
  * indirectly during native or forced-WASI rendering.
  */
-const requireCSSInliningCapabilities = async (launcherPath) => {
+const requireDemoCapabilities = async (launcherPath) => {
   const nativeEnvironment = { ...process.env };
   delete nativeEnvironment.PANNONICO_FORCE_WASI;
   for (const selection of [
@@ -334,10 +374,13 @@ const requireCSSInliningCapabilities = async (launcherPath) => {
       environment: selection.environment,
       label: `${selection.label} capability check`,
     });
-    if (!output.split("\n").includes("  - css-inlining (v1)")) {
-      throw new Error(
-        `The ${selection.label} artifact lacks css-inlining. Copy a matched Pro native/WASI pair from pannonico-go.`,
-      );
+    const capabilities = output.split("\n");
+    for (const capability of ["css-inlining", "rich-markdown"]) {
+      if (!capabilities.includes(`  - ${capability} (v1)`)) {
+        throw new Error(
+          `The ${selection.label} artifact lacks ${capability}. Copy a matched Pro native/WASI pair from pannonico-go.`,
+        );
+      }
     }
   }
 };
@@ -378,7 +421,7 @@ const verifyDemo = async () => {
     );
   }
 
-  await requireCSSInliningCapabilities(launcherPath);
+  await requireDemoCapabilities(launcherPath);
 
   const typescriptCLI = join(dirname(typescriptPackage), "bin", "tsc");
   await runCommand(
@@ -416,6 +459,7 @@ const verifyDemo = async () => {
   const wasiFiles = await readOutputTree(join(DEMO_ROOT, "dist-wasi"));
   compareOutputTrees(nativeFiles, wasiFiles);
   verifyReadableHTML(nativeFiles);
+  verifyRichMarkdown(nativeFiles);
   const { entry, resource } = await readViteManifestContract();
   verifyPublishedAssets(nativeFiles, entry, resource);
 

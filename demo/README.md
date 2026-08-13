@@ -41,12 +41,21 @@ ordinary `inlineCSS` frontmatter used only by the shared demo partial. In
 production, `inlined.html` adds `data-pannonico-inline-css` to the Vite CSS
 link, while `index.html` and `guide.html` leave the same link unmarked.
 Development links are always unmarked so Vite CSS HMR continues to work. Copy
-a matched Pro native/WASI pair; `demo:verify` checks `css-inlining` on both
+a matched Pro native/WASI pair; `demo:verify` checks `css-inlining` and
+`rich-markdown` on both
 artifacts before starting either build.
+
+`pages/guide.md` exercises every rich-Markdown plugin. Verification requires
+the native and forced-WASI outputs to contain the same heading anchor,
+footnotes, abbreviation, subscript, superscript, mark, insertion, and deletion
+HTML. The guide is excluded from Oxfmt because its generic Markdown formatter
+rewrites the single-tilde subscript example as double-tilde deletion syntax.
 
 The verifier uses `--beautify` for native and forced-WASI builds, requires their
 complete output trees to be byte-identical, and checks readable nesting, LF
 line endings, and the no-final-newline contract on all three pages. It requires
+the guide's single footnote group to remain in `.pannonico.content` after the
+page's closing `main` and before the layout footer. It requires
 `inlined.html` to contain generated element styles, residual media CSS, and a
 rebased root-relative SVG URL without the selected link. It separately requires
 `index.html` and `guide.html` to retain the compiled stylesheet link without
