@@ -20,6 +20,14 @@ and an inline note^[Rendered by the same plugin composition.].
 The demo owns the presentation of this parsed **Markdown container**.
 :::
 
+```
+const answer: number = 42
+```
+
+```ts
+const answer: number = 42
+```
+
 [Return to the demo](/)
 
 *[HTML]: Hyper Text Markup Language

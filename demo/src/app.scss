@@ -89,6 +89,21 @@ footer,
   border-inline-start: 0.25rem solid var(--pannonico-demo-accent);
 }
 
+.pannonico-code {
+  padding: 1rem;
+  overflow-x: auto;
+  background: rgb(24 33 47 / 8%);
+
+  .kr,
+  .kt {
+    color: #88419d;
+  }
+
+  .mi {
+    color: #b2452d;
+  }
+}
+
 footer {
   padding-block: 2rem;
   border-top: 1px solid rgb(24 33 47 / 20%);

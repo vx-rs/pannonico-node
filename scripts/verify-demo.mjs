@@ -221,7 +221,7 @@ const verifyReadableHTML = (files) => {
 };
 
 /**
- * verifyRichMarkdown requires all nine Pro plugins in the shared native/WASI guide output.
+ * verifyRichMarkdown requires all ten Pro plugins in the shared native/WASI guide output.
  *
  * The complete output trees have already passed byte parity, so one guide check covers both
  * runtime targets while still naming the missing semantic element in a focused failure.
@@ -238,12 +238,23 @@ const verifyRichMarkdown = (files) => {
     "<ins>inserted text</ins>",
     "<del>deleted text</del>",
     'class="pannonico-container pannonico-container--build-note"',
+    '<pre class="pannonico-code"><code>const answer: number = 42',
+    'class="pannonico-code"',
+    'class="language-ts"',
+    'class="line"',
+    'class="cl"',
+    'class="kr">const</span>',
+    'class="kt">number</span>',
+    'class="mi">42</span>',
     'class="footnote-ref"',
     'class="footnotes-list"',
   ]) {
     if (!html.includes(expected)) {
       throw new Error(`guide.html lacks rich-Markdown output: ${expected}`);
     }
+  }
+  if (html.split('class="pannonico-code"').length !== 3) {
+    throw new Error("guide.html does not contain exactly two fenced-code wrappers");
   }
   const footnoteGroup = html.lastIndexOf('class="footnotes"');
   const pageContentEnd = html.lastIndexOf("</main>");
