@@ -1,0 +1,27 @@
+{
+  "artifacts": [
+    {
+      "capabilities": [
+        { "name": "atomic-output", "version": 1 },
+        { "name": "vite-process", "version": 1 }
+      ],
+      "kind": "native",
+      "path": "native/pannonico",
+      "sha256": "396cfec2d1c795ce71dce2d9c92f29cddec638632050c17861d771936a99282d",
+      "target": "linux-amd64"
+    },
+    {
+      "capabilities": [{ "name": "atomic-output", "version": 1 }],
+      "kind": "wasi",
+      "path": "pannonico.wasm",
+      "sha256": "b36773b12f9f942de3e7446ecf177220eb28634c77ae085ccb2e0bcd1a61cba4",
+      "target": "wasip1-wasm"
+    }
+  ],
+  "edition": "free",
+  "pairId": "84b50608bd3a70308f193a7318bb0849f0ac2ceeb931eec2762112becf064aac",
+  "product": "pannonico",
+  "productVersion": "1.2.3-test",
+  "schemaVersion": 1,
+  "sourceRevision": "development"
+}

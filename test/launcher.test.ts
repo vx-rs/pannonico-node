@@ -1,3 +1,7 @@
+// Imports
+// -----------------------------------------------------------------------------
+
+// Node.js
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { EventEmitter, once } from "node:events";
@@ -6,6 +10,8 @@ import os from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+// Internal
+import { ArtifactMissingError } from "../lib/artifacts.js";
 import { createDebugLogger } from "../lib/debug.js";
 import { main } from "../lib/launcher.js";
 import { runNativeExecutable } from "../lib/run-native.js";
@@ -17,6 +23,32 @@ const ARTIFACTS = {
   native: "/launcher/artifacts/native/pannonico",
   wasi: "/launcher/artifacts/pannonico.wasm",
 };
+const MANIFEST = { artifacts: [{ kind: "native" }, { kind: "wasi" }] };
+
+/**
+ * createSelectionOptions supplies manifest and selected-member boundaries without filesystem I/O.
+ *
+ * Launcher tests override only behavior needed by each selection case. The default models a valid
+ * Linux pair and lets tests assert which exact verified path reaches each process runner.
+ *
+ * @returns {object} Default focused launcher options.
+ */
+const createSelectionOptions = () => ({
+  environment: {},
+  platform: "linux",
+  architecture: "x64",
+  artifactRoot: "/launcher/artifacts",
+  readArtifactManifest: async () => MANIFEST,
+  verifyArtifactMember: async (_manifest, kind, options) => {
+    assert.equal(options.artifactRoot, "/launcher/artifacts");
+    if (kind === "native") {
+      assert.equal(options.expectedTarget, "linux-amd64");
+      return { path: ARTIFACTS.native, record: MANIFEST.artifacts[0] };
+    }
+    return { path: ARTIFACTS.wasi, record: MANIFEST.artifacts[1] };
+  },
+  debug: () => {},
+});
 
 // Launcher selection
 // -----------------------------------------------------------------------------
@@ -36,11 +68,8 @@ test("forwards native arguments, process boundary, and exact exit status", async
   let invocation;
   const environment = { TEST_VALUE: "yes" };
   const status = await main(["build", "site"], {
+    ...createSelectionOptions(),
     environment,
-    platform: "linux",
-    architecture: "x64",
-    artifactPaths: ARTIFACTS,
-    inspectArtifact: () => true,
     runNative: async (executable, args, options) => {
       invocation = { executable, args, options };
       return { signal: null, status: 17 };
@@ -55,39 +84,71 @@ test("forwards native arguments, process boundary, and exact exit status", async
   });
 });
 
-test("falls back only when forced, unsupported, or missing the native artifact", async () => {
-  for (const options of [
-    { environment: { PANNONICO_FORCE_WASI: "1" }, platform: "linux", architecture: "x64" },
-    { environment: {}, platform: "aix", architecture: "ppc64" },
-    { environment: {}, platform: "linux", architecture: "x64", nativeMissing: true },
-  ]) {
-    let wasiUsed = false;
-    const status = await main(["--version"], {
-      ...options,
-      artifactPaths: ARTIFACTS,
-      inspectArtifact: (artifact) => artifact === ARTIFACTS.wasi || !options.nativeMissing,
-      runNative: async () => ({ signal: null, status: 0 }),
-      runWasi: async (module, args) => {
-        wasiUsed = module === ARTIFACTS.wasi && args[0] === "--version";
-        return 9;
-      },
-      debug: () => {},
-    });
-    assert.equal(status, 9);
-    assert.equal(wasiUsed, true);
-  }
+test("emits exact fallback stderr only for unsupported host after verified WASI", async () => {
+  let output = "";
+  let wasiUsed = false;
+  const status = await main(["--version"], {
+    ...createSelectionOptions(),
+    platform: "aix",
+    architecture: "ppc64",
+    stderr: { write: (value) => (output += value) },
+    runWasi: async (module, args) => {
+      wasiUsed = module === ARTIFACTS.wasi && args[0] === "--version";
+      return 9;
+    },
+  });
+  assert.equal(status, 9);
+  assert.equal(wasiUsed, true);
+  assert.equal(output, "pannonico: using WASI fallback (reason=unsupported-native-host)\n");
 });
 
-test("never falls back after local native artifact validation fails", async () => {
+test("emits exact fallback stderr only for a missing native member", async () => {
+  let output = "";
+  const options = createSelectionOptions();
+  const verify = options.verifyArtifactMember;
+  const status = await main([], {
+    ...options,
+    stderr: { write: (value) => (output += value) },
+    verifyArtifactMember: async (manifest, kind, selection) => {
+      if (kind === "native") {
+        throw new ArtifactMissingError(
+          "native artifact",
+          Object.assign(new Error(), { code: "ENOENT" }),
+        );
+      }
+      return verify(manifest, kind, selection);
+    },
+    runWasi: async () => 7,
+  });
+  assert.equal(status, 7);
+  assert.equal(output, "pannonico: using WASI fallback (reason=native-artifact-missing)\n");
+});
+
+test("forced WASI verifies only WASI and remains silent", async () => {
+  let output = "";
+  const selected = [];
+  const status = await main([], {
+    ...createSelectionOptions(),
+    environment: { PANNONICO_FORCE_WASI: "1" },
+    stderr: { write: (value) => (output += value) },
+    verifyArtifactMember: async (_manifest, kind) => {
+      selected.push(kind);
+      return { path: ARTIFACTS.wasi, record: MANIFEST.artifacts[1] };
+    },
+    runWasi: async () => 8,
+  });
+  assert.equal(status, 8);
+  assert.deepEqual(selected, ["wasi"]);
+  assert.equal(output, "");
+});
+
+test("never falls back after native metadata, safety, or checksum validation fails", async () => {
   let wasiUsed = false;
   await assert.rejects(
     main([], {
-      environment: {},
-      platform: "linux",
-      architecture: "x64",
-      artifactPaths: ARTIFACTS,
-      inspectArtifact: () => {
-        throw new Error("native artifact is unsafe");
+      ...createSelectionOptions(),
+      verifyArtifactMember: async () => {
+        throw new Error("native artifact checksum mismatch");
       },
       runWasi: async () => {
         wasiUsed = true;
@@ -95,33 +156,48 @@ test("never falls back after local native artifact validation fails", async () =
       },
       debug: () => {},
     }),
-    /native artifact is unsafe/,
+    /checksum mismatch/,
   );
   assert.equal(wasiUsed, false);
 });
 
-test("reports a missing WASI artifact with copy guidance", async () => {
+test("treats a missing selected WASI member as a hard failure", async () => {
   await assert.rejects(
     main([], {
+      ...createSelectionOptions(),
       environment: { PANNONICO_FORCE_WASI: "1" },
-      platform: "linux",
-      architecture: "x64",
-      artifactPaths: ARTIFACTS,
-      inspectArtifact: () => false,
-      debug: () => {},
+      verifyArtifactMember: async () => {
+        throw new ArtifactMissingError(
+          "WASI artifact",
+          Object.assign(new Error(), { code: "ENOENT" }),
+        );
+      },
     }),
-    /Copy pannonico\.wasm/,
+    /WASI artifact is missing/,
   );
+});
+
+test("rejects an invalid manifest before selecting any member", async () => {
+  let selected = false;
+  await assert.rejects(
+    main([], {
+      ...createSelectionOptions(),
+      readArtifactManifest: async () => {
+        throw new Error("artifact manifest pairId mismatch");
+      },
+      verifyArtifactMember: async () => {
+        selected = true;
+      },
+    }),
+    /pairId mismatch/,
+  );
+  assert.equal(selected, false);
 });
 
 test("reports blocked native execution with explicit forced-WASI guidance", async () => {
   await assert.rejects(
     main([], {
-      environment: {},
-      platform: "linux",
-      architecture: "x64",
-      artifactPaths: ARTIFACTS,
-      inspectArtifact: () => true,
+      ...createSelectionOptions(),
       runNative: async () => {
         const error = new Error("blocked");
         error.code = "EACCES";
@@ -136,11 +212,7 @@ test("reports blocked native execution with explicit forced-WASI guidance", asyn
 test("propagates a native termination signal through the parent process", async () => {
   let received;
   const status = await main([], {
-    environment: {},
-    platform: "linux",
-    architecture: "x64",
-    artifactPaths: ARTIFACTS,
-    inspectArtifact: () => true,
+    ...createSelectionOptions(),
     runNative: async () => ({ signal: "SIGTERM", status: 1 }),
     processRef: {
       pid: 42,

@@ -401,10 +401,38 @@ const requireDemoCapabilities = async (launcherPath) => {
 // -----------------------------------------------------------------------------
 
 /**
+ * requireVerifiedArtifacts validates the demo's complete manifest-bound package pair.
+ *
+ * The verifier calls this before capability probes, TypeScript, Vite, or Pannonico builds. Loading
+ * the API from the resolved package root preserves workspace/package-manager independence, while
+ * package-time validation requires the manifest and both safe checksum-matched members. Any
+ * validation failure becomes one concise Pro copy instruction without weakening the original cause.
+ *
+ * @param {string} packageRoot Resolved @vx.rs/pannonico package root.
+ * @returns {Promise<void>} Resolves only when the manifest and both members validate.
+ * @throws {Error} When package metadata or either bound artifact member is invalid or missing.
+ */
+const requireVerifiedArtifacts = async (packageRoot) => {
+  const artifactModuleURL = pathToFileURL(join(packageRoot, "lib", "artifacts.js"));
+  const { verifyPackageArtifacts } = await import(artifactModuleURL.href);
+  try {
+    await verifyPackageArtifacts(join(packageRoot, "artifacts"));
+  } catch (error) {
+    throw new Error(
+      `A valid matched native/WASI pair is required. Run 'make copy-pro-node' in the sibling pannonico-go repository. ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      { cause: error },
+    );
+  }
+};
+
+/**
  * verifyDemo runs the complete local workspace, native, WASI, and manifest integration contract.
  *
- * It requires dependencies plus a matched local artifact pair, writes only ignored demo build
- * directories, and rejects on the first failed prerequisite, command, parity, or asset assertion.
+ * It validates the complete package pair before capabilities or build side effects, then requires
+ * demo dependencies and Pro capabilities. It writes only ignored demo build directories and rejects
+ * on the first failed prerequisite, command, parity, or asset assertion.
  */
 const verifyDemo = async () => {
   const { launcherPath, packageRoot } = await resolveLauncher();
@@ -412,26 +440,12 @@ const verifyDemo = async () => {
     throw new Error("The demo launcher dependency does not resolve to this repository root.");
   }
 
+  await requireVerifiedArtifacts(packageRoot);
+
   resolveDemoDependency("vite");
   resolveDemoDependency("sass", "sass");
   resolveDemoDependency("lightningcss", "lightningcss");
   const typescriptPackage = resolveDemoDependency("typescript");
-
-  const artifactModuleURL = pathToFileURL(join(packageRoot, "lib", "artifacts.js"));
-  const { getArtifactPaths, inspectArtifact } = await import(artifactModuleURL.href);
-  const artifactPaths = getArtifactPaths();
-  const nativeAvailable = inspectArtifact(artifactPaths.native, "local native artifact", {
-    executable: true,
-    platform: process.platform,
-  });
-  const wasiAvailable = inspectArtifact(artifactPaths.wasi, "local WASI artifact", {
-    platform: process.platform,
-  });
-  if (!nativeAvailable || !wasiAvailable) {
-    throw new Error(
-      "A matched native/WASI pair is required. Copy both artifacts from one pannonico-go build into artifacts/.",
-    );
-  }
 
   await requireDemoCapabilities(launcherPath);
 
