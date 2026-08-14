@@ -1,36 +1,34 @@
 # Pannonico local launcher
 
 `@vx.rs/pannonico` is a private prototype launcher for locally built Pannonico
-binaries. It runs a native binary when one is available for the current host
-and otherwise uses the local WASI build. It does not download artifacts,
-resolve platform packages, or publish anything.
+binaries. It validates one generated native/WASI manifest and the selected
+member before execution. It runs the native member when it matches the current
+host. It uses the WASI member only for the two documented automatic fallback
+cases or when explicitly forced. It does not download artifacts, resolve
+platform packages, or publish anything.
 
 ## Local development
 
-Build one edition in the sibling Go repository:
+Build, stage, identify, and verify one edition from the sibling Go repository:
 
 ```sh
 cd ../pannonico-go
-mkdir -p build/free/native
-CGO_ENABLED=0 go build -mod=vendor -trimpath \
-  -o build/free/native/pannonico ./cmd/pannonico
-CGO_ENABLED=0 GOOS=wasip1 GOARCH=wasm go build -mod=vendor -trimpath \
-  -o build/free/pannonico.wasm ./cmd/pannonico
+make copy-free-node VERSION=0.0.0-dev SOURCE_REVISION=development
 ```
 
-Copy that edition into this launcher's fixed artifact paths:
+Use `make copy-pro-node` for Pro. For a clean revision-bound pair, replace
+`development` with the full lowercase 40-character Go Git revision. The Make
+target copies both binaries into destination-tree staging, queries and hashes
+only those staged bytes, checks their reported edition, Go product version,
+targets, and ordered capabilities, and renames `artifacts/manifest.json` last.
+It then validates both members and the npm dry-run payload. A failed producer
+check leaves the prior manifest in place.
 
-```sh
-cd ../pannonico-node
-mkdir -p artifacts/native
-cp ../pannonico-go/build/free/native/pannonico artifacts/native/pannonico
-cp ../pannonico-go/build/free/pannonico.wasm artifacts/pannonico.wasm
-```
-
-Use `build/pro/...` instead to test the Pro edition. On Windows, name the
-native artifact `artifacts/native/pannonico.exe`. Always replace the native and
-WASI files together. Mixing a Free artifact with a Pro artifact can make native
-and fallback execution report different capabilities.
+Do not copy members manually. The launcher requires `artifacts/manifest.json`
+and verifies the selected path, target, executable mode, and SHA-256 checksum.
+The manifest binds both member paths and digests to one canonical pair ID.
+Package verification is stricter than runtime selection and always requires
+both members.
 
 Install the development tools, run the launcher tests, and create the global
 development link:
@@ -108,7 +106,8 @@ npm run demo:assets
 PANNONICO_FORCE_WASI=1 npm run demo:build
 ```
 
-With a Pro native artifact, start coordinated Pannonico and Vite development:
+With a Pro native artifact, start Integrated development mode, which
+coordinates Pannonico and Vite:
 
 ```sh
 npm run demo:watch
@@ -116,8 +115,9 @@ npm run demo:watch
 
 The equivalent commands inside `demo/` are `npm run build` and `npm run watch`;
 both pass `--beautify`. The complete demo therefore requires Pro native and Pro
-WASI artifacts with `css-inlining` and `rich-markdown`, while only the native artifact provides
-watch mode. CSS inlining has no project setting or CLI flag: the shared partial
+WASI artifacts with `css-inlining` and `rich-markdown`, while only the native
+artifact provides Integrated development mode through `pannonico watch`. CSS
+inlining has no project setting or CLI flag: the shared partial
 marks the production link only for the page whose ordinary `inlineCSS`
 frontmatter is true. Development links remain unmarked so Vite owns CSS HMR.
 Demo dependencies, Vite state, and `dist*` output remain local and are not
@@ -142,13 +142,48 @@ only within it. The host recognizes repeated `--data-url` syntax but both WASI
 editions reject the Pro-native-only capability. Native-only commands and
 configured remote data are reported by Pannonico with exit status `4`.
 
-`PANNONICO_FORCE_WASI=1 npx pannonico scaffold --min site` creates the same
-config-only starter as the native command.
+The WASI host never creates the scaffold root. Create the directory before a
+forced or automatic-fallback scaffold command:
 
-The launcher falls back when the native artifact is absent or the host is not
-supported. A symlink, non-file, or non-executable native artifact is treated as
-an error. Set `PANNONICO_LAUNCHER_DEBUG=1` for safe host, selection, and fallback
-diagnostics on standard error.
+```sh
+mkdir site
+PANNONICO_FORCE_WASI=1 npx pannonico scaffold --min site
+```
+
+The guest creates the same config-only starter inside that existing directory.
+On a supported native host, `npx pannonico scaffold --min site` retains the
+native CLI convenience of creating a missing root.
+
+The launcher automatically falls back only when the native member is absent or
+the Node host platform/architecture is unsupported. It first verifies the WASI
+member, then writes exactly one line to standard error:
+
+```text
+pannonico: using WASI fallback (reason=native-artifact-missing)
+```
+
+The other reason is `unsupported-native-host`. Forced WASI is not a fallback
+and writes no fallback line. A malformed manifest, unsafe path, symlink,
+non-file, non-executable native member, checksum mismatch, target mismatch, or
+native start failure is a hard error. A missing selected WASI member is also a
+hard error. Protocol and product output remain on standard output.
+
+## MCP through WASI
+
+Forced or automatic WASI execution supports the current MCP project contract:
+
+```sh
+PANNONICO_FORCE_WASI=1 npx pannonico mcp
+PANNONICO_FORCE_WASI=1 npx pannonico mcp ./site
+```
+
+With no positional root, the host validates the current working directory.
+With one root, it validates that directory. It resolves a real non-root,
+non-symlink directory, preopens only that directory as `/project`, and passes
+guest arguments exactly as `mcp /project`. `mcp --help` and `mcp -h` preopen
+nothing. Unknown flags, extra positionals, files, filesystem roots, missing or
+non-directory roots, and paths containing a symlink fail before WASI module
+compilation. MCP receives no ambient environment or additional preopens.
 
 ## Private Git dependency
 
@@ -168,15 +203,15 @@ if another machine or CI job needs them. Because ordinary artifact copies are
 ignored, create such a snapshot deliberately after copying one matched pair:
 
 ```sh
-git add -f artifacts/native/pannonico artifacts/pannonico.wasm
+git add -f artifacts/manifest.json artifacts/native/pannonico artifacts/pannonico.wasm
 git commit -m "chore: snapshot local Pannonico artifacts"
 git rev-parse HEAD
 ```
 
-Use `artifacts/native/pannonico.exe` in the first command for a Windows-native
-snapshot. Pin the commit printed by the final command in the consumer's
-`package.json`. Do not pin the preceding source-only commit because it does not
-contain the ignored artifacts.
+Use `artifacts/native/pannonico.exe` for a Windows-native snapshot. Pin the
+commit printed by the final command in the consumer's `package.json`. Do not
+pin the preceding source-only commit because it does not contain the ignored
+manifest and members.
 
 There is deliberately no `prepare` script, generated package graph, registry
 release, or install-time download. For normal same-machine development,
