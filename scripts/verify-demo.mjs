@@ -192,6 +192,32 @@ const compareOutputTrees = (nativeFiles, wasiFiles) => {
 };
 
 /**
+ * verifySitemap requires the demo's complete deterministic sitemap bytes.
+ *
+ * Tree parity has already proved the native and WASI files match, so checking the native map
+ * covers both runtimes while fixing the expected base URL, route mapping, order, and XML format.
+ */
+const verifySitemap = (files) => {
+  const expected = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://example.com/pannonico-node-demo/</loc>
+  </url>
+  <url>
+    <loc>https://example.com/pannonico-node-demo/guide.html</loc>
+  </url>
+  <url>
+    <loc>https://example.com/pannonico-node-demo/inlined.html</loc>
+  </url>
+</urlset>
+`;
+  const sitemap = files.get("sitemap.xml")?.toString("utf8");
+  if (sitemap !== expected) {
+    throw new Error("sitemap.xml does not contain the configured three-route sitemap");
+  }
+};
+
+/**
  * verifyReadableHTML requires the demo's generated documents to follow Pro's fixed formatting.
  *
  * All pages must have top-level document lines, two-space head/body nesting, deeper main content,
@@ -484,13 +510,14 @@ const verifyDemo = async () => {
   const nativeFiles = await readOutputTree(join(DEMO_ROOT, "dist-native"));
   const wasiFiles = await readOutputTree(join(DEMO_ROOT, "dist-wasi"));
   compareOutputTrees(nativeFiles, wasiFiles);
+  verifySitemap(nativeFiles);
   verifyReadableHTML(nativeFiles);
   verifyRichMarkdown(nativeFiles);
   const { entry, resource } = await readViteManifestContract();
   verifyPublishedAssets(nativeFiles, entry, resource);
 
   process.stdout.write(
-    `Verified ${nativeFiles.size} byte-identical beautified native/WASI files and the Vite manifest boundary.\n`,
+    `Verified ${nativeFiles.size} byte-identical beautified native/WASI files, sitemap, and Vite manifest boundary.\n`,
   );
 };
 

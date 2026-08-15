@@ -5,6 +5,11 @@ Pannonico Vite connector. It keeps Vite, Sass, Lightning CSS, and TypeScript
 outside the launcher package while using the launcher's ignored local
 artifacts.
 
+The schema-v1 project config sets `site.url` to
+`https://example.com/pannonico-node-demo` and leaves the default-on sitemap
+enabled. Every successful native or WASI build therefore publishes a sorted
+three-route `sitemap.xml` for `/`, `/guide.html`, and `/inlined.html`.
+
 From the repository root, install the single workspace lockfile and run the
 artifact-independent frontend checks:
 
@@ -57,7 +62,8 @@ theme. The guide is excluded from Oxfmt because its generic Markdown formatter
 rewrites the single-tilde subscript example as double-tilde deletion syntax.
 
 The verifier uses `--beautify` for native and forced-WASI builds, requires their
-complete output trees to be byte-identical, and checks readable nesting, LF
+complete output trees to be byte-identical, requires the exact configured
+`sitemap.xml`, and checks readable nesting, LF
 line endings, and the no-final-newline contract on all three pages. It requires
 the guide's single footnote group to remain in `.pannonico.content` after the
 page's closing `main` and before the layout footer. It requires

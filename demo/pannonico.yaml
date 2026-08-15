@@ -1,5 +1,11 @@
 version: 1
 
+site:
+  url: https://example.com/pannonico-node-demo
+
+sitemap:
+  enabled: true
+
 richMarkdown:
   enabled: true
 
