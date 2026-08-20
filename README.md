@@ -91,8 +91,7 @@ classes, and one consolidated footnote group at the end of
 `.pannonico.content`, before the layout footer. Its SCSS customizes the stable
 container and code wrappers, generated container modifier, and scoped token
 classes because Pannonico provides no default container or code theme.
-`inlined.html` uses
-`data-pannonico-inline-css`, contains generated style
+`inlined.html` uses the `pannonico-inline-css` directive, contains generated style
 attributes and residual media CSS, removes the selected link, and rebases the
 SCSS asset URL. Every page retains the JavaScript tag, and all compiled CSS,
 JavaScript, and SVG assets remain published. The site also renders a resource-
@@ -117,9 +116,10 @@ The equivalent commands inside `demo/` are `npm run build` and `npm run watch`;
 both pass `--beautify`. The complete demo therefore requires Pro native and Pro
 WASI artifacts with `css-inlining` and `rich-markdown`, while only the native
 artifact provides Integrated development mode through `pannonico watch`. CSS
-inlining has no project setting or CLI flag: the shared partial
-marks the production link only for the page whose ordinary `inlineCSS`
-frontmatter is true. Development links remain unmarked so Vite owns CSS HMR.
+inlining has no project setting or CLI flag: the shared partial adds the
+directive to the production link only for the page whose ordinary `inlineCSS`
+frontmatter is true. Development links remain unselected so Vite owns CSS HMR.
+The shared syntax is documented in `../pannonico-go/docs/directives.md`.
 Demo dependencies, Vite state, and `dist*` output remain local and are not
 included by the launcher's `files` package boundary. See
 [`demo/README.md`](demo/README.md) for the source-to-manifest data flow.
