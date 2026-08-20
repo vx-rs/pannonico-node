@@ -136,6 +136,81 @@ const runCommandOutput = (executable, args, options) =>
 // -----------------------------------------------------------------------------
 
 /**
+ * findPannonicoDirectiveAttribute returns the first actual reserved or legacy HTML attribute.
+ *
+ * The lightweight scanner skips comments, end tags, declarations, and HTML raw/RCDATA text, so
+ * syntax-looking content is not confused with a build directive. It is intentionally read-only
+ * and is used only to enforce the generated-output contract on completed demo pages.
+ */
+const findPannonicoDirectiveAttribute = (html) => {
+  const lowercase = html.toLowerCase();
+  let position = 0;
+  while ((position = html.indexOf("<", position)) !== -1) {
+    if (lowercase.startsWith("<!--", position)) {
+      const commentEnd = html.indexOf("-->", position + 4);
+      position = commentEnd === -1 ? html.length : commentEnd + 3;
+      continue;
+    }
+    let cursor = position + 1;
+    if (!/[a-z]/i.test(html[cursor] ?? "")) {
+      position = cursor;
+      continue;
+    }
+    const nameStart = cursor;
+    while (cursor < html.length && !/[\s/>]/.test(html[cursor])) cursor += 1;
+    const element = lowercase.slice(nameStart, cursor);
+    let tagEnd = cursor;
+    while (cursor < html.length) {
+      while (/[\t\n\f\r ]/.test(html[cursor] ?? "")) cursor += 1;
+      if (html[cursor] === ">") {
+        tagEnd = cursor + 1;
+        break;
+      }
+      if (html[cursor] === "/" && html[cursor + 1] === ">") {
+        tagEnd = cursor + 2;
+        break;
+      }
+      const attributeStart = cursor;
+      while (cursor < html.length && !/[\s=/>]/.test(html[cursor])) cursor += 1;
+      if (cursor === attributeStart) {
+        cursor += 1;
+        continue;
+      }
+      const attribute = lowercase.slice(attributeStart, cursor);
+      if (attribute.startsWith("pannonico-") || attribute === "data-pannonico-inline-css") {
+        return attribute;
+      }
+      while (/[\t\n\f\r ]/.test(html[cursor] ?? "")) cursor += 1;
+      if (html[cursor] !== "=") continue;
+      cursor += 1;
+      while (/[\t\n\f\r ]/.test(html[cursor] ?? "")) cursor += 1;
+      const quote = html[cursor];
+      if (quote === '"' || quote === "'") {
+        cursor += 1;
+        while (cursor < html.length && html[cursor] !== quote) cursor += 1;
+        if (cursor < html.length) cursor += 1;
+      } else {
+        while (cursor < html.length && !/[\s>]/.test(html[cursor])) cursor += 1;
+      }
+    }
+    if (tagEnd === cursor && cursor >= html.length) return undefined;
+    if (
+      ["script", "style", "textarea", "title", "xmp", "iframe", "noembed", "noframes"].includes(
+        element,
+      )
+    ) {
+      const rawEnd = lowercase.indexOf(`</${element}`, tagEnd);
+      position = rawEnd === -1 ? html.length : rawEnd;
+    } else if (element === "plaintext") {
+      position = html.length;
+    } else {
+      position = tagEnd;
+    }
+  }
+  return undefined;
+};
+
+/**
  * walkOutputTree records every regular file below one generated output directory.
  *
  * Relative keys always use forward slashes for cross-platform comparison. Directories recurse;
@@ -332,14 +407,22 @@ const readViteManifestContract = async () => {
 /**
  * verifyPublishedAssets proves one shared Vite entry supports linked and inlined page policies.
  *
- * It reads only the already parity-checked native output map. Missing files, page-policy drift,
- * wrong URL rebasing, and missing TypeScript/SCSS markers reject with a focused integration error.
+ * It reads only the already parity-checked native output map. Directive leaks in any generated
+ * HTML, missing files, page-policy drift, wrong URL rebasing, and missing TypeScript/SCSS markers
+ * reject with a focused integration error.
  */
 const verifyPublishedAssets = (files, entry, resource) => {
   const pages = ["index.html", "inlined.html", "guide.html"];
   const assets = [...new Set([entry.file, ...entry.css, ...entry.assets, resource.file])];
   for (const asset of assets) {
     if (!files.has(asset)) throw new Error(`Manifest asset was not published: ${asset}`);
+  }
+  for (const [relativePath, contents] of files) {
+    if (!relativePath.toLowerCase().endsWith(".html")) continue;
+    const directive = findPannonicoDirectiveAttribute(contents.toString("utf8"));
+    if (directive) {
+      throw new Error(`${relativePath} retains Pannonico HTML directive attribute ${directive}`);
+    }
   }
   for (const page of pages) {
     const html = files.get(page)?.toString("utf8");
@@ -349,9 +432,6 @@ const verifyPublishedAssets = (files, entry, resource) => {
     }
     if (!html.includes(`rel="preload" as="image" href="/${resource.file}"`)) {
       throw new Error(`${page} does not render the configured Vite resource alias`);
-    }
-    if (html.includes("data-pannonico-inline-css")) {
-      throw new Error(`${page} retains a Pannonico CSS marker`);
     }
   }
 

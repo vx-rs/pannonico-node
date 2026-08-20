@@ -8,7 +8,7 @@
     {{range .css}}
       {{if eq $vite.mode "production"}}
         {{if $inlineCSS}}
-          <link rel="stylesheet" href="{{.}}" data-pannonico-inline-css />
+          <link rel="stylesheet" href="{{.}}" pannonico-inline-css />
         {{else}}
           <link rel="stylesheet" href="{{.}}" />
         {{end}}
