@@ -46,7 +46,8 @@ ordinary `inlineCSS` frontmatter used only by the shared demo partial. In
 production, `inlined.html` adds the `pannonico-inline-css` directive to the Vite
 CSS link, while `index.html` and `guide.html` leave the same link unselected.
 Development links are always unselected so Vite CSS HMR continues to work. The
-common syntax is documented in `../../pannonico-go/docs/directives.md`. Copy
+common syntax is documented in
+`../../pannonico-go/documentation/user-manual/authoring/directives.md`. Copy
 a matched Pro native/WASI pair; `demo:verify` checks `css-inlining` and
 `rich-markdown` on both
 artifacts before starting either build.
