@@ -1,5 +1,10 @@
 # Package scripts
 
+The [maintainer testing guide](../documentation/maintainers/testing/README.md)
+orders the repository checks. The
+[artifact and package contract](../documentation/maintainers/compilation-and-release/README.md)
+is the canonical cross-repository procedure.
+
 `verify-package.mjs` validates the private launcher's current
 `artifacts/manifest.json`, native member, and WASI member. It then runs
 `npm pack --dry-run --json` with a disposable cache and checks the payload. The
