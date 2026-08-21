@@ -37,8 +37,8 @@
     "demo:verify": "node scripts/verify-demo.mjs"
   },
   "devDependencies": {
-    "oxfmt": "^0.58.0",
-    "oxlint": "^1.73.0"
+    "oxfmt": "^0.64.0",
+    "oxlint": "^1.79.0"
   },
   "engines": {
     "node": ">=24.0.0"
