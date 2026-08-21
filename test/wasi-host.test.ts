@@ -3,7 +3,7 @@
 
 // Node.js
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { lstat as inspectPath } from "node:fs/promises";
 import os from "node:os";
 import { join, resolve } from "node:path";
@@ -12,8 +12,12 @@ import test from "node:test";
 // Internal
 import { prepareWasiInvocation, runWasiExecutable } from "../lib/run-wasi.js";
 
+// Canonicalize platform aliases such as macOS /var and Windows 8.3 names so
+// fixture identity matches the production realpath confinement boundary.
+const TEST_TEMP_ROOT = realpathSync(os.tmpdir());
+
 test("scopes a build to one project and only SOURCE_DATE_EPOCH", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-wasi-"));
   const project = join(root, "site");
   mkdirSync(project);
   try {
@@ -47,7 +51,7 @@ test("scopes a build to one project and only SOURCE_DATE_EPOCH", async () => {
 });
 
 test("rejects broad preopens and project-external absolute paths", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-wasi-"));
   try {
     await assert.rejects(prepareWasiInvocation(["build", resolve("/")]), /filesystem root/);
     await assert.rejects(
@@ -78,7 +82,7 @@ test("rejects broad preopens and project-external absolute paths", async () => {
 });
 
 test("rejects a missing scaffold root before canonical or WASI work", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-wasi-"));
   const project = join(root, "new-site");
   const events = [];
   try {
@@ -113,7 +117,7 @@ test("rejects a missing scaffold root before canonical or WASI work", async () =
 });
 
 test("never invokes legacy mkdir after an ancestor is replaced", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-wasi-"));
   const outside = join(root, "outside");
   const parent = join(root, "parent");
   const selected = join(parent, "leaf");
@@ -150,7 +154,7 @@ test("never invokes legacy mkdir after an ancestor is replaced", async () => {
 });
 
 test("rejects a scaffold symlink ancestor without creating outside descendants", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-wasi-"));
   const outside = join(root, "outside");
   const parent = join(root, "parent");
   const link = join(parent, "link");
@@ -176,7 +180,7 @@ test("rejects a scaffold symlink ancestor without creating outside descendants",
 });
 
 test("rejects a scaffold non-directory ancestor without host mutation", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-wasi-"));
   const parent = join(root, "parent.txt");
   const selected = join(parent, "leaf");
   writeFileSync(parent, "not a directory\n");
@@ -197,7 +201,7 @@ test("rejects a scaffold non-directory ancestor without host mutation", async ()
 });
 
 test("preopens a positional source parent and forwards new syntax", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-wasi-"));
   const source = join(root, "article.md");
   const data = join(root, "external-data");
   writeFileSync(source, "# Article\n");
@@ -233,7 +237,7 @@ test("preopens a positional source parent and forwards new syntax", async () => 
 });
 
 test("forwards the minimal scaffold mode", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-wasi-"));
   const project = join(root, "minimal-site");
   mkdirSync(project);
   try {
@@ -246,7 +250,7 @@ test("forwards the minimal scaffold mode", async () => {
 });
 
 test("forwards build feature flags to the selected edition", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-wasi-"));
   const project = join(root, "site");
   mkdirSync(project);
   try {
@@ -263,7 +267,7 @@ test("forwards build feature flags to the selected edition", async () => {
 });
 
 test("forwards recognized build values without interpreting Go policy", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-wasi-"));
   const project = join(root, "site");
   mkdirSync(project);
   try {
@@ -346,7 +350,7 @@ test("rejects explicit empty project roots before filesystem or WASI work", asyn
 });
 
 test("distinguishes omitted, bare-separator, and literal whitespace roots", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-wasi-"));
   const whitespace = join(root, "   ");
   mkdirSync(whitespace);
   try {
@@ -391,7 +395,7 @@ test("keeps genuine project help forms filesystem-free", async () => {
 });
 
 test("confines help-looking option values and separator roots", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-wasi-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-wasi-"));
   const project = join(root, "site");
   mkdirSync(project);
   try {
@@ -441,7 +445,7 @@ test("keeps exact MCP help forms filesystem-free", async () => {
 });
 
 test("maps MCP cwd or one explicit directory to the fixed guest project", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-mcp-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-mcp-"));
   const project = join(root, "site");
   mkdirSync(project);
   try {
@@ -469,7 +473,7 @@ test("maps MCP cwd or one explicit directory to the fixed guest project", async 
 });
 
 test("rejects invalid MCP roots and syntax before module compilation", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-mcp-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-mcp-"));
   const project = join(root, "site");
   const file = join(root, "article.md");
   mkdirSync(project);
@@ -509,7 +513,7 @@ test("rejects invalid MCP roots and syntax before module compilation", async () 
 });
 
 test("hosts MCP with only project preopen, inherited protocol streams, and no environment", async () => {
-  const root = mkdtempSync(join(os.tmpdir(), "pannonico-node-mcp-"));
+  const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-mcp-"));
   let configuration;
   class FakeMcpWasi {
     /** constructor captures the complete preview1 grant before the long-lived server starts. */

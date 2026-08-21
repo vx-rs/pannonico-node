@@ -4,7 +4,15 @@
 // Node.js
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -28,6 +36,9 @@ import {
 
 const NATIVE_BYTES = Buffer.from("native fixture\n");
 const WASI_BYTES = Buffer.from("wasi fixture\n");
+// Canonicalize platform aliases such as macOS /var and Windows 8.3 names so
+// fixture identity matches the production realpath confinement boundary.
+const TEST_TEMP_ROOT = realpathSync(os.tmpdir());
 const FIXTURE_NATIVE_PATH =
   process.platform === "win32" ? "native/pannonico.exe" : "native/pannonico";
 const FIXTURE_NATIVE_TARGET =
@@ -100,7 +111,7 @@ const bindPairId = (manifest) => {
  * @returns {{root: string, manifest: Record<string, unknown>}} Fixture root and metadata.
  */
 const createArtifactFixture = () => {
-  const root = mkdtempSync(path.join(os.tmpdir(), "pannonico-node-artifact-"));
+  const root = mkdtempSync(path.join(TEST_TEMP_ROOT, "pannonico-node-artifact-"));
   mkdirSync(path.join(root, "native"));
   writeFileSync(path.join(root, FIXTURE_NATIVE_PATH), NATIVE_BYTES, { mode: 0o755 });
   writeFileSync(path.join(root, "pannonico.wasm"), WASI_BYTES);
@@ -274,7 +285,7 @@ test("derives native execute-bit enforcement from the artifact target", async ()
 test("rejects symlink components, symlink files, and nonregular selected members", async () => {
   if (process.platform === "win32") return;
   const fixture = createArtifactFixture();
-  const external = mkdtempSync(path.join(os.tmpdir(), "pannonico-node-external-"));
+  const external = mkdtempSync(path.join(TEST_TEMP_ROOT, "pannonico-node-external-"));
   try {
     const manifest = await readArtifactManifest(fixture.root);
     rmSync(path.join(fixture.root, "native"), { recursive: true });
@@ -325,7 +336,7 @@ test("runtime tolerates an unselected missing member while package verification 
 });
 
 test("rejects missing, malformed, and symlinked manifest commit points", async () => {
-  const root = mkdtempSync(path.join(os.tmpdir(), "pannonico-node-manifest-"));
+  const root = mkdtempSync(path.join(TEST_TEMP_ROOT, "pannonico-node-manifest-"));
   try {
     await assert.rejects(readArtifactManifest(root), /manifest.*missing/i);
     writeFileSync(path.join(root, "manifest.json"), "{");
