@@ -38,7 +38,7 @@ const NATIVE_BYTES = Buffer.from("native fixture\n");
 const WASI_BYTES = Buffer.from("wasi fixture\n");
 // Canonicalize platform aliases such as macOS /var and Windows 8.3 names so
 // fixture identity matches the production realpath confinement boundary.
-const TEST_TEMP_ROOT = realpathSync(os.tmpdir());
+const TEST_TEMP_ROOT = realpathSync.native(os.tmpdir());
 const FIXTURE_NATIVE_PATH =
   process.platform === "win32" ? "native/pannonico.exe" : "native/pannonico";
 const FIXTURE_NATIVE_TARGET =

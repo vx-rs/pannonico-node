@@ -14,7 +14,7 @@ import { prepareWasiInvocation, runWasiExecutable } from "../lib/run-wasi.js";
 
 // Canonicalize platform aliases such as macOS /var and Windows 8.3 names so
 // fixture identity matches the production realpath confinement boundary.
-const TEST_TEMP_ROOT = realpathSync(os.tmpdir());
+const TEST_TEMP_ROOT = realpathSync.native(os.tmpdir());
 
 test("scopes a build to one project and only SOURCE_DATE_EPOCH", async () => {
   const root = mkdtempSync(join(TEST_TEMP_ROOT, "pannonico-node-wasi-"));
